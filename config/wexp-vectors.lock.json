@@ -3,6 +3,6 @@
   "dependency": "wexp-vectors",
   "repository": "WEXP-dev/wexp-vectors",
   "status": "blocked",
-  "blocked_reason": "No released public normative WEXP vector package is available.",
-  "required_resolution": "Pin an intentionally released public vector package by immutable commit and manifest digest before acquisition and execution."
+  "blocked_reason": "No normative WEXP vector package has been released.",
+  "required_resolution": "After a normative WEXP vector package is intentionally released, pin its immutable commit and manifest digest before reviewed acquisition and execution."
 }
