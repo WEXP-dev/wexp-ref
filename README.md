@@ -1,9 +1,14 @@
-# WEXP Public Reference Tooling
+# WEXP Reference Implementation
 
-This repository contains the public WEXP reference tooling state: a deliberately
-conservative Python 3.12+ command-line package, non-normative XML parse and hash
-checks, public vector-dependency lock validation, and a GitHub-neutral execution
-runner. Experimental or unreleased development may occur separately.
+WEXP (Witnessed Execution) is an IETF-oriented specification effort for
+independently verifiable claims about software and AI execution within explicit
+evidence and observation boundaries.
+
+This repository contains the deliberately conservative public WEXP reference
+implementation and test vehicle. Its behavior is bounded by intentionally
+published WEXP specification states. The current implementation provides
+generic Python 3.12+ tooling and does not yet implement the published Core
+`-00` semantics.
 
 > The WEXP specifications are authoritative.
 >
@@ -27,7 +32,17 @@ implementation behavior does not add, replace, or reinterpret specification
 requirements. Implementation experiments for unpublished behavior are kept
 outside this public repository state.
 
-## Public tooling surface
+## WEXP repositories
+
+- [Specifications — `wexp-spec`](https://github.com/WEXP-dev/wexp-spec) —
+  published WEXP specification states.
+- [Test vectors — `wexp-vectors`](https://github.com/WEXP-dev/wexp-vectors) —
+  implementation-independent test-vector infrastructure.
+- [Reference implementation — `wexp-ref`](https://github.com/WEXP-dev/wexp-ref)
+  — conservative implementation and generic tooling bounded by published WEXP
+  specifications.
+
+## Available
 
 The CLI currently provides:
 
@@ -40,6 +55,16 @@ These commands do not parse, emit, or semantically verify a WEXP protocol
 record. XML parsing establishes neither specification validity nor IETF
 acceptance. Lock validation establishes dependency metadata consistency, not
 vector execution or protocol correctness.
+
+## Current limitations
+
+- This repository does not currently provide a semantic implementation of the
+  published [Core `-00`](https://datatracker.ietf.org/doc/html/draft-sergeev-wexp-core-00).
+- No released public normative WEXP vector package is currently available; the
+  dependency state is explicitly blocked and CI does not fetch or execute
+  vectors.
+- The runner is not a sandbox. Its observations are implementation-local, not
+  standardized WEXP protocol records or protocol-conformance evidence.
 
 ## Local use
 
@@ -122,3 +147,14 @@ Repository-authored reference implementation software and tooling are licensed
 under the [Apache License 2.0](LICENSE) unless explicitly stated otherwise.
 WEXP specifications remain separately authoritative and are not licensed by
 this software license merely because the implementation refers to them.
+
+## Public genesis
+
+The [public genesis manifest](provenance/PUBLIC-GENESIS.json) inventories the
+first intentionally authorized public repository state. The root commit does
+not assert that the included work was originally created or published at that
+time.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution and review guidance.
