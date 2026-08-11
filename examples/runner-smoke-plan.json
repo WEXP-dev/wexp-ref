@@ -1,11 +1,11 @@
 {
   "plan_version": 1,
   "execution_id": "wexp-ref-generic-runner-smoke",
-  "subject": "Observe generic public reference tooling execution",
+  "subject": "Observe execution by the generic reference runner",
   "source": {
     "repository": "local:wexp-ref",
     "revision_status": "working-tree",
-    "note": "Development-only generic runner smoke; not protocol, conformance, release, or reproducibility evidence."
+    "note": "This development-only runner smoke test is not evidence of protocol behavior, conformance, a release, or reproducibility."
   },
   "dependencies": [],
   "external_dependencies": [],

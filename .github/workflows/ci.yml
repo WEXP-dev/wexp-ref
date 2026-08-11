@@ -31,10 +31,10 @@ jobs:
       - name: Unit tests
         run: python -m unittest discover -s tests -v
 
-      - name: Validate public vector dependency state
+      - name: Validate vector dependency lock
         run: wexp-ref validate-lock
 
-      - name: Confirm cross-repository execution is explicitly blocked
+      - name: Confirm vector execution remains blocked
         run: >-
           python -c "import json;
           s=json.load(open('config/wexp-vectors-execution-access.json'));

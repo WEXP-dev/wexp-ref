@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "runner-plan.schema.json",
-  "title": "WEXP reference runner plan (implementation-local)",
-  "description": "Generic runner input; not a WEXP protocol wire format or conformance claim.",
+  "title": "WEXP reference runner plan",
+  "description": "Input for the generic runner. It is specific to this implementation, not a WEXP wire format or a conformance claim.",
   "type": "object",
   "required": [
     "plan_version", "execution_id", "subject", "source", "dependencies",

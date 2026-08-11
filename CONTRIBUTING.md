@@ -1,14 +1,14 @@
 # Contributing to `wexp-ref`
 
-`wexp-ref` is an implementation and test vehicle. A change must not make
-implementation behavior a hidden source of WEXP meaning.
+`wexp-ref` is an implementation and test vehicle. Its behavior must not define
+WEXP.
 
-External developers should be able to implement and test WEXP using published
+Developers should be able to implement and test WEXP from published
 specifications and released implementation-independent vectors without treating
-`wexp-ref` as an authority. Vector expectations must come from specification
+`wexp-ref` as authoritative. Vector expectations must come from specification
 requirements, not from this repository's output.
 
-## Published-specification boundary
+## Relationship to published specifications
 
 Before adding behavior that claims to implement WEXP semantics:
 
@@ -18,12 +18,11 @@ Before adding behavior that claims to implement WEXP semantics:
    unpublished revision, representation, profile, or mapping.
 3. Classify disagreements as implementation defects or specification
    ambiguities; do not resolve them by declaring the implementation normative.
-4. Keep experimental or unreleased implementation work outside the public
-   repository state.
+4. Keep pre-publication implementation work outside this repository.
 5. Add tests for supported behavior and prohibited inferences only after the
-   governing specification state is public.
+   governing specification has been published.
 
-Public implementation coverage may lag the specification. Missing code does
+The implementation may lag behind the specifications. Missing code does
 not remove a specification requirement, and passing code does not create one.
 
 ## Validation
@@ -38,12 +37,11 @@ actionlint
 
 When working without installation, use `PYTHONPATH=src`.
 
-No released public normative WEXP vector package is currently available. The
-checked-in dependency state is therefore explicitly blocked. A future public
-vector test requires both an immutable released identity and an actual
-acquisition and execution step. An unexecuted check must never be reported as
-PASS, and floating revisions such as `main`, `latest`, or `HEAD` must not appear
-in evidence.
+No normative WEXP vector package has been released, so the checked-in lock is
+marked `blocked`. Before CI can run a released vector package, the package must
+have an immutable identity and the workflow must actually acquire and execute
+it. Never report an unexecuted check as PASS. Floating revisions such as
+`main`, `latest`, or `HEAD` must not appear in evidence.
 
 ## Runner and security
 
