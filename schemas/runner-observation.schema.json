@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "runner-observation.schema.json",
+  "title": "WEXP reference runner observation (implementation-local)",
+  "description": "Generic runner output; not a standardized WEXP protocol record or evidence of protocol conformance.",
+  "type": "object",
+  "required": [
+    "record_kind", "record_version", "execution_id", "subject", "source",
+    "dependencies", "external_dependencies", "executor", "procedure", "observations",
+    "exit_statuses", "outputs", "claims", "non_claims", "timestamps", "overall_exit_status"
+  ],
+  "properties": {
+    "record_kind": {"const": "wexp-ref-runner-observation"},
+    "record_version": {"const": 1},
+    "execution_id": {"type": "string", "minLength": 1},
+    "subject": {"type": "string", "minLength": 1},
+    "source": {"type": "object"},
+    "dependencies": {"type": "array"},
+    "external_dependencies": {"type": "array"},
+    "executor": {"type": "object"},
+    "procedure": {"type": "array"},
+    "observations": {"type": "array"},
+    "exit_statuses": {"type": "object"},
+    "outputs": {"type": "array"},
+    "claims": {"type": "array", "items": {"type": "string"}},
+    "non_claims": {"type": "array", "items": {"type": "string"}},
+    "timestamps": {"type": "object", "required": ["started_at", "finished_at"]},
+    "overall_exit_status": {"type": "integer"}
+  },
+  "additionalProperties": false
+}

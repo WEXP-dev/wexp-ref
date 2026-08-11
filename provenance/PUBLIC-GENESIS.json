@@ -1,0 +1,174 @@
+{
+  "artifact_kind": "wexp-public-genesis",
+  "created_at": "2026-08-11T19:00:54Z",
+  "genesis_kind": "authorized-public-state",
+  "manifest_version": 1,
+  "non_claims": [
+    "This public genesis does not assert that the included artifacts were originally created or published at the time of this Git root commit.",
+    "This manifest is not a release, independent conformance result, or IETF acceptance record."
+  ],
+  "payload": {
+    "file_count": 24,
+    "inventory": [
+      {
+        "mode": "100644",
+        "path": ".github/workflows/ci.yml",
+        "sha256": "d0c8528681bbdf804e85dd9e8344d154f7d415388951c643bc81c469a754f60d",
+        "size": 2191
+      },
+      {
+        "mode": "100644",
+        "path": ".gitignore",
+        "sha256": "ba8ebe6f587052e13a8114f5f269f59fa56a71fe423abc8813607b4bf78ef7f3",
+        "size": 94
+      },
+      {
+        "mode": "100644",
+        "path": "CONTRIBUTING.md",
+        "sha256": "ab901e3e49dbbc892bf077e042f1fe1af43d18655ef48c4fc05d749e6de7111a",
+        "size": 2635
+      },
+      {
+        "mode": "100644",
+        "path": "LICENSE",
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "size": 11358
+      },
+      {
+        "mode": "100644",
+        "path": "README.md",
+        "sha256": "48f48dcd29773802e2f7528de6e2ba537a449bf4268f76b45d0373ed8bd09002",
+        "size": 5263
+      },
+      {
+        "mode": "100644",
+        "path": "config/wexp-vectors-execution-access.json",
+        "sha256": "fd90c746b74ad0243ee047d399d95fd977debed8b108d187a90b9a2bd76842c8",
+        "size": 487
+      },
+      {
+        "mode": "100644",
+        "path": "config/wexp-vectors.lock.json",
+        "sha256": "3b95bbbb5f45bd609defc1b86b3bcb226fa554df57499e6d6a5cdb7128643f92",
+        "size": 360
+      },
+      {
+        "mode": "100644",
+        "path": "examples/runner-smoke-plan.json",
+        "sha256": "5e94362980071e5b87bca4b12ec6d4282ac00052cb119104dcea5c488d09548c",
+        "size": 1171
+      },
+      {
+        "mode": "100644",
+        "path": "pyproject.toml",
+        "sha256": "653955e82d6682453035ef163a30781e50aa866daf8042c0999bc39a294b40b7",
+        "size": 704
+      },
+      {
+        "mode": "100644",
+        "path": "schemas/runner-observation.schema.json",
+        "sha256": "06f2555ded4e4042fd376a14bc6c43c754dd311b71905935ad7b425ad0998ee5",
+        "size": 1414
+      },
+      {
+        "mode": "100644",
+        "path": "schemas/runner-plan.schema.json",
+        "sha256": "baa81069e91f19bb018948beb61d0f8843e26175c4c02bba7882c2b21b6ed093",
+        "size": 2570
+      },
+      {
+        "mode": "100644",
+        "path": "schemas/wexp-vectors-lock.schema.json",
+        "sha256": "7158c70d6b8d17c73d9826a54f8408cdd0070b0ea869200d79d27c1e7a2e8cac",
+        "size": 1260
+      },
+      {
+        "mode": "100644",
+        "path": "scripts/check_action_pins.py",
+        "sha256": "006deb40b533db224147f55fccb9278f0a59ee5d2dbd807baa9b1eb17d7db1c1",
+        "size": 928
+      },
+      {
+        "mode": "100644",
+        "path": "scripts/validate_repository.py",
+        "sha256": "2dcd8875bfed98ae53a65befa2252b85133cd2b6a879c4f597928119820a52e9",
+        "size": 908
+      },
+      {
+        "mode": "100644",
+        "path": "scripts/validate_vectors_lock.py",
+        "sha256": "c159ffde81611768557876128f5fb562d2b1f71e45e252db8da9402bdfe6af16",
+        "size": 634
+      },
+      {
+        "mode": "100644",
+        "path": "src/wexp_ref/__init__.py",
+        "sha256": "c646474b53a954eaf36493cde6089301058d07f312f6f82fbdb6fe9fdb6992b7",
+        "size": 151
+      },
+      {
+        "mode": "100644",
+        "path": "src/wexp_ref/__main__.py",
+        "sha256": "78af61ec1d8a6e74cf4a63ebf58b545dcdca390a13be344347d9e9d79066b444",
+        "size": 57
+      },
+      {
+        "mode": "100644",
+        "path": "src/wexp_ref/cli.py",
+        "sha256": "b281d7b19c7fdb7199c04a16d6676ef0d2aafc7f4cdd37a48c057c06f820905d",
+        "size": 3729
+      },
+      {
+        "mode": "100644",
+        "path": "src/wexp_ref/locks.py",
+        "sha256": "1277c602f54f731202c5f9cefefb48f9f7218011ff7ddfe7dd5df78b81170194",
+        "size": 2684
+      },
+      {
+        "mode": "100644",
+        "path": "src/wexp_ref/runner/__init__.py",
+        "sha256": "4a8bba4ee82f26e0c906b47d7d2cf626a38df8d1846e05f21674fa838c19117f",
+        "size": 132
+      },
+      {
+        "mode": "100644",
+        "path": "src/wexp_ref/runner/executor.py",
+        "sha256": "35b449c99217135dc188b1f106fb9ba0b43361f7759fbcc2a632d06d9a28e351",
+        "size": 13922
+      },
+      {
+        "mode": "100644",
+        "path": "tests/__init__.py",
+        "sha256": "4fb841194164cbcc25161e5bc2e3278d3eb0e6a90398c647da1255ea95d1f222",
+        "size": 60
+      },
+      {
+        "mode": "100644",
+        "path": "tests/test_locks.py",
+        "sha256": "8edcde933006d9fd8cac1a715b1eb2e175a2bb37519a9f00521a1ebb5b7798d3",
+        "size": 1845
+      },
+      {
+        "mode": "100644",
+        "path": "tests/test_runner.py",
+        "sha256": "462cca9926c07f0a0cbdf1b2fe0584949a96cbaaa9c7104e7f32941ca0989c57",
+        "size": 3651
+      }
+    ],
+    "snapshot": {
+      "format": "USTAR; UTF-8-byte-sorted regular files; no directory entries; uid/gid 0; empty uname/gname; mtime 0; inventory modes",
+      "sha256": "e47bb7f4ef6b34cb0ca46ac9aed2403ee1d47bc5aea33b75560b99db23a02bb3"
+    },
+    "tree_digest_algorithm": "SHA-256 over 'wexp-public-tree-v1\\0' followed by UTF-8-byte-sorted mode\\0path\\0size_decimal\\0sha256hex\\n entries",
+    "tree_sha256": "f88c99bbb8954ae4fc511336d78fe1dc1ccac1dca3d0628bafcc01997e69873b"
+  },
+  "repository": "WEXP-dev/wexp-ref",
+  "self_exclusion": {
+    "path": "provenance/PUBLIC-GENESIS.json",
+    "reason": "The manifest is excluded from its own payload inventory and digest to avoid a self-hash cycle."
+  },
+  "statements": [
+    "This public repository begins at an intentionally authorized public state.",
+    "Prior private engineering history is not part of this public Git history."
+  ]
+}

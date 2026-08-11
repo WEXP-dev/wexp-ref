@@ -1,0 +1,37 @@
+{
+  "plan_version": 1,
+  "execution_id": "wexp-ref-generic-runner-smoke",
+  "subject": "Observe generic public reference tooling execution",
+  "source": {
+    "repository": "local:wexp-ref",
+    "revision_status": "working-tree",
+    "note": "Development-only generic runner smoke; not protocol, conformance, release, or reproducibility evidence."
+  },
+  "dependencies": [],
+  "external_dependencies": [],
+  "inputs": [
+    {"path": "config/wexp-vectors.lock.json"}
+  ],
+  "procedure": [
+    {
+      "name": "validate-public-vector-dependency-state",
+      "argv": [
+        "{python}", "-m", "wexp_ref", "validate-lock",
+        "config/wexp-vectors.lock.json", "--output",
+        "build/vector-lock-validation.json"
+      ],
+      "cwd": ".",
+      "timeout_seconds": 60
+    }
+  ],
+  "outputs": [
+    {"artifact": "build/vector-lock-validation.json", "required": true}
+  ],
+  "claims": [
+    "The declared local command was observed with the recorded exit status.",
+    "The declared output artifact was observed and hashed when present."
+  ],
+  "non_claims": [
+    "This smoke run does not execute cross-repository vectors or evaluate WEXP protocol semantics."
+  ]
+}

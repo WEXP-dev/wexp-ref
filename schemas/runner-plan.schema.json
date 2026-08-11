@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "runner-plan.schema.json",
+  "title": "WEXP reference runner plan (implementation-local)",
+  "description": "Generic runner input; not a WEXP protocol wire format or conformance claim.",
+  "type": "object",
+  "required": [
+    "plan_version", "execution_id", "subject", "source", "dependencies",
+    "external_dependencies", "inputs", "procedure", "outputs", "claims", "non_claims"
+  ],
+  "properties": {
+    "plan_version": {"const": 1},
+    "execution_id": {"type": "string", "minLength": 1},
+    "subject": {"type": "string", "minLength": 1},
+    "source": {"$ref": "#/$defs/identity"},
+    "dependencies": {"type": "array", "items": {"$ref": "#/$defs/identity"}},
+    "external_dependencies": {"type": "array", "items": {"$ref": "#/$defs/identity"}},
+    "inputs": {"type": "array", "items": {"$ref": "#/$defs/input"}},
+    "procedure": {"type": "array", "items": {"$ref": "#/$defs/step"}},
+    "outputs": {"type": "array", "items": {"$ref": "#/$defs/output"}},
+    "claims": {"type": "array", "items": {"type": "string"}},
+    "non_claims": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "required": ["repository"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "minLength": 1},
+        "revision_status": {"enum": ["pinned", "working-tree", "blocked"]},
+        "note": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "input": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "step": {
+      "type": "object",
+      "required": ["name", "argv"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "cwd": {"type": "string", "minLength": 1},
+        "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 3600},
+        "continue_on_error": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "required": ["artifact"],
+      "properties": {
+        "artifact": {"type": "string", "minLength": 1},
+        "required": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

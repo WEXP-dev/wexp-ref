@@ -1,0 +1,7 @@
+{
+  "status": "BLOCKED",
+  "repository": "WEXP-dev/wexp-vectors",
+  "reason": "No released public normative WEXP vector package is available, and the current workflow does not fetch or execute vectors.",
+  "effect": "Cross-repository vector execution was not run and must not be reported as PASS.",
+  "resolution": "After a public vector release, pin its immutable identity and add a reviewed acquisition and execution step before reporting cross-repository vector execution as PASS."
+}

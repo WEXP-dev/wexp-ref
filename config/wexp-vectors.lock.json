@@ -1,0 +1,8 @@
+{
+  "lock_version": 1,
+  "dependency": "wexp-vectors",
+  "repository": "WEXP-dev/wexp-vectors",
+  "status": "blocked",
+  "blocked_reason": "No released public normative WEXP vector package is available.",
+  "required_resolution": "Pin an intentionally released public vector package by immutable commit and manifest digest before acquisition and execution."
+}
