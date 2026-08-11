@@ -22,8 +22,8 @@ correctness of an action being described.
 ## Published-specification boundary
 
 Public implementation behavior in this repository is limited to intentionally
-published WEXP specification states. The currently published repository state
-includes historical Core `-00`; this tree does not currently provide a semantic
+published WEXP specification states. The current published WEXP specification
+state is historical Core `-00`; this tree does not currently provide a semantic
 implementation of that revision.
 
 Public implementation coverage may lag the specifications. Absence of a feature
