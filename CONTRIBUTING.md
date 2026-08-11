@@ -38,10 +38,11 @@ actionlint
 When working without installation, use `PYTHONPATH=src`.
 
 No normative WEXP vector package has been released, so the checked-in lock is
-marked `blocked`. Before CI can run a released vector package, the package must
-have an immutable identity and the workflow must actually acquire and execute
-it. Never report an unexecuted check as PASS. Floating revisions such as
-`main`, `latest`, or `HEAD` must not appear in evidence.
+marked `blocked`. Before CI can run an intentionally released normative vector
+package, the package must have an immutable identity and the workflow must use
+a reviewed step to acquire and execute it. Never report an unexecuted check as
+PASS. Floating revisions such as `main`, `latest`, or `HEAD` must not appear in
+evidence.
 
 ## Runner and security
 

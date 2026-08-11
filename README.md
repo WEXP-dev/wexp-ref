@@ -1,8 +1,8 @@
 # WEXP Reference Implementation
 
 WEXP (Witnessed Execution) is an IETF-oriented specification effort for
-independently verifiable claims about software and AI execution. Evidence and
-observation boundaries limit which claims the available evidence can support.
+classifying the evidentiary strength of claims about software and AI execution,
+subject to explicit evidence and observation boundaries.
 
 This repository is for the WEXP reference implementation and related test
 tools. The current Python 3.12+ package checks XML parsing and the
@@ -17,9 +17,9 @@ IETF acceptance, or the validity of an execution claim.
 
 ## Relationship to the specifications
 
-The only WEXP specification currently published is the historical
-[Core `-00`](https://datatracker.ietf.org/doc/html/draft-sergeev-wexp-core-00)
-Internet-Draft. The reference implementation may lag behind the specifications.
+The currently published WEXP specification is
+[Core `-00`](https://datatracker.ietf.org/doc/html/draft-sergeev-wexp-core-00),
+an Internet-Draft. The reference implementation may lag behind the specifications.
 A missing feature here does not mean that it is absent from a specification.
 This implementation cannot add, replace, or reinterpret specification
 requirements. Pre-publication development is maintained separately.
@@ -105,9 +105,10 @@ The checked-in vector lock is marked `blocked` without a guessed commit or
 digest. The workflow does not download or run vectors, and it does not report
 cross-repository vector execution as PASS.
 
-After a vector package is released, its immutable identity and manifest digest
-can be pinned before the workflow is extended to acquire and run it. A known
-identity and actual execution remain separate evidence.
+After a normative WEXP vector package is intentionally released, its immutable
+identity and manifest digest can be pinned before the workflow is extended with
+a reviewed step to acquire and run it. A known identity and actual execution
+remain separate evidence.
 
 GitHub Actions runs the same generic CLI; the workflow does not define WEXP
 semantics. It uses least-privilege read permissions and exact action commit

@@ -4,5 +4,5 @@
   "repository": "WEXP-dev/wexp-vectors",
   "status": "blocked",
   "blocked_reason": "No normative WEXP vector package has been released.",
-  "required_resolution": "After a vector package is released, pin its immutable commit and manifest digest before acquisition and execution."
+  "required_resolution": "After a normative WEXP vector package is intentionally released, pin its immutable commit and manifest digest before reviewed acquisition and execution."
 }
