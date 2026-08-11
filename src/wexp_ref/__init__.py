@@ -1,4 +1,4 @@
-"""Public WEXP reference tooling.
+"""WEXP reference tooling.
 
 The specifications, not this package, are authoritative.
 """

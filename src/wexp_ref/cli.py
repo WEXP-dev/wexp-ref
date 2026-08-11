@@ -1,4 +1,4 @@
-"""Command-line entry point for public WEXP reference tooling."""
+"""Command-line entry point for WEXP reference tooling."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ def _xml(args: argparse.Namespace) -> int:
         "parser": "python.xml.etree.ElementTree",
         "non_claims": [
             "XML parsing does not establish IETF or specification acceptance.",
-            "No WEXP semantic claim was appraised.",
+            "No WEXP claim was evaluated for semantic support.",
         ],
     }
     _write_json(result, args.output)
@@ -97,7 +97,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     runner.set_defaults(handler=_run)
 
-    lock = commands.add_parser("validate-lock", help="validate the wexp-vectors lock")
+    lock = commands.add_parser("validate-lock", help="check the wexp-vectors dependency lock")
     lock.add_argument(
         "input", type=Path, nargs="?", default=Path("config/wexp-vectors.lock.json")
     )

@@ -1,45 +1,59 @@
-# WEXP Public Reference Tooling
+# WEXP Reference Implementation
 
-This repository contains the public WEXP reference tooling state: a deliberately
-conservative Python 3.12+ command-line package, non-normative XML parse and hash
-checks, public vector-dependency lock validation, and a GitHub-neutral execution
-runner. Experimental or unreleased development may occur separately.
+WEXP (Witnessed Execution Protocol) is an IETF-oriented specification effort
+for evaluating support for claims about software and AI execution within
+explicit evidence and observation boundaries.
 
-> The WEXP specifications are authoritative.
->
-> This repository is an implementation and test vehicle. It does not define
-> WEXP or create specification semantics.
+This repository is for the WEXP reference implementation and related test
+tools. The current Python 3.12+ package checks XML parsing and the
+`wexp-vectors` dependency lock and provides a generic execution runner.
 
-The implementation is pre-alpha. A passing check is not proof of protocol
-correctness, independent conformance, interoperability, IETF acceptance, or
-correctness of an action being described.
+> The WEXP specifications are authoritative. This implementation does not
+> define WEXP.
 
-## Published-specification boundary
+The package is pre-alpha. Passing one of its checks does not prove protocol
+correctness, interoperability, conformance by an independent implementation,
+IETF acceptance, or the validity of an execution claim.
 
-Public implementation behavior in this repository is limited to intentionally
-published WEXP specification states. The currently published repository state
-includes historical Core `-00`; this tree does not currently provide a semantic
-implementation of that revision.
+## Relationship to the specifications
 
-Public implementation coverage may lag the specifications. Absence of a feature
-here does not imply that the feature is absent from a specification, and
-implementation behavior does not add, replace, or reinterpret specification
-requirements. Implementation experiments for unpublished behavior are kept
-outside this public repository state.
+The currently published WEXP specification is
+[Core `-00`](https://datatracker.ietf.org/doc/html/draft-sergeev-wexp-core-00),
+an Internet-Draft. The reference implementation may lag behind the specifications.
+A missing feature here does not mean that it is absent from a specification.
+This implementation cannot add, replace, or reinterpret specification
+requirements. Pre-publication development is maintained separately.
 
-## Public tooling surface
+## WEXP repositories
+
+- [Specifications — `wexp-spec`](https://github.com/WEXP-dev/wexp-spec) —
+  published WEXP specifications and their provenance.
+- [Test vectors — `wexp-vectors`](https://github.com/WEXP-dev/wexp-vectors) —
+  schemas and validation tools for implementation-independent WEXP test vectors.
+- [Reference implementation — `wexp-ref`](https://github.com/WEXP-dev/wexp-ref)
+  — the reference implementation and generic execution tools.
+
+## Available
 
 The CLI currently provides:
 
-- `validate-xml`: parse an XML artifact and report its SHA-256 digest;
-- `validate-lock`: validate an immutable or explicitly blocked public-vector
-  dependency state; and
-- `run`: execute a reviewed declarative argv-only plan and record observations.
+- `validate-xml`: parse an XML file and report its SHA-256 digest;
+- `validate-lock`: check whether the `wexp-vectors` dependency lock is pinned
+  or explicitly blocked; and
+- `run`: execute a declarative argv-only plan and record observations.
 
 These commands do not parse, emit, or semantically verify a WEXP protocol
-record. XML parsing establishes neither specification validity nor IETF
-acceptance. Lock validation establishes dependency metadata consistency, not
-vector execution or protocol correctness.
+record. A successful XML parse does not establish conformance with WEXP or IETF
+acceptance. Lock validation checks dependency metadata only; it neither
+executes vectors nor proves protocol correctness.
+
+## Current limitations
+
+- The package does not yet implement the Core `-00` verification model.
+- No normative WEXP vector package has been released. The dependency lock is
+  marked `blocked`, and CI does not download or run vectors.
+- The runner is not a sandbox. Its observations are specific to this
+  implementation, not standardized WEXP records or evidence of conformance.
 
 ## Local use
 
@@ -59,9 +73,9 @@ From a source checkout without installation, prefix commands with
 ## Generic runner
 
 The runner consumes a declarative JSON plan. Plans declare inputs, argv-only
-steps, outputs, source/dependency identities, claims, and non-claims. Commands
-are passed directly to `subprocess.run(..., shell=False)`; `{python}` and
-`{workspace}` are the only whole-argument substitutions. The runner hashes
+steps, outputs, source and dependency identities, claims, and non-claims.
+Commands are passed directly to `subprocess.run(..., shell=False)`; `{python}`
+and `{workspace}` are the only whole-argument substitutions. The runner hashes
 declared inputs and observed output files and records timestamps, argv,
 stdout/stderr hashes, observations, and exit statuses.
 
@@ -72,44 +86,43 @@ PYTHONPATH=src python3 -m wexp_ref run \
   --record WEXP-REF-RUNNER-OBSERVATION.json
 ```
 
-The runner is not a sandbox. A reviewed plan can execute any declared program
-available to the caller; it records declared files but cannot prove that a
-process touched no other resource. Plans should therefore be reviewed and run
-with least privilege.
+A plan can execute any declared program available to the caller. The runner
+records declared files but cannot prove that a process touched no other
+resource. Review plans before running them and use least privilege.
 
-Observations emitted by the example command use
-`record_kind: wexp-ref-runner-observation`. They are implementation-local
-development infrastructure, not a standardized WEXP protocol record or
-evidence of protocol conformance.
+The example command emits records with
+`record_kind: wexp-ref-runner-observation`. These records are specific to this
+implementation. They are not standardized WEXP protocol records or evidence of
+protocol conformance.
 
-Every emitted record includes required non-claims that it does not establish
-IETF acceptance, independent implementation conformance, complete WEXP
-correctness, or standardized protocol-record status.
+Every emitted record states that it does not establish IETF acceptance,
+independent implementation conformance, complete WEXP correctness, or
+standardized protocol-record status.
 
 ## Reproducibility and vectors
 
-No released public normative WEXP vector package is currently available. The
-checked-in vector lock therefore records an explicit `blocked` state without a
-guessed commit or digest. The public workflow does not fetch or execute vectors,
-and cross-repository vector execution is not reported as PASS.
+The checked-in vector lock is marked `blocked` without a guessed commit or
+digest. The workflow does not download or run vectors, and it does not report
+cross-repository vector execution as PASS.
 
-When a released vector package becomes available, its immutable identity and
-manifest digest can be pinned before acquisition and execution are added. A
-known identity and actual execution remain separate evidence.
+After a normative WEXP vector package is intentionally released, its immutable
+identity and manifest digest can be pinned before the workflow is extended with
+a reviewed step to acquire and run it. A known identity and actual execution
+remain separate evidence.
 
-GitHub Actions orchestrates the same generic CLI. It is not a semantic source
-of truth. The workflow uses least-privilege read permissions and exact action
-commit pins; ordinary checks do not require secrets or a private development
+GitHub Actions runs the same generic CLI; the workflow does not define WEXP
+semantics. It uses least-privilege read permissions and exact action commit
+pins. Ordinary checks require neither secrets nor a private development
 repository.
 
 ## Repository map
 
 ```text
-src/wexp_ref/runner/      CI-neutral argv runner and evidence producer
-src/wexp_ref/locks.py     public vector-lock validation
+src/wexp_ref/runner/      CI-neutral argv runner and observation producer
+src/wexp_ref/locks.py     vector-lock validation
 src/wexp_ref/cli.py       command-line interface and XML parse/hash check
-config/                   public vector-dependency status
-schemas/                  implementation-local plan, observation, and lock schemas
+config/                   vector dependency status
+schemas/                  runner-specific plan, observation, and lock schemas
 examples/                 generic development-only runner plan
 provenance/               public genesis inventory and non-claims
 scripts/                  local validation and Action-pin checks
@@ -122,3 +135,14 @@ Repository-authored reference implementation software and tooling are licensed
 under the [Apache License 2.0](LICENSE) unless explicitly stated otherwise.
 WEXP specifications remain separately authoritative and are not licensed by
 this software license merely because the implementation refers to them.
+
+## Public genesis
+
+The [public genesis manifest](provenance/PUBLIC-GENESIS.json) inventories the
+files in this repository's first authorized public commit. That root commit
+does not imply that the included work was created or first published at that
+time.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution and review guidance.

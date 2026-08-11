@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "runner-observation.schema.json",
-  "title": "WEXP reference runner observation (implementation-local)",
-  "description": "Generic runner output; not a standardized WEXP protocol record or evidence of protocol conformance.",
+  "title": "WEXP reference runner observation",
+  "description": "Output from the generic runner. It is specific to this implementation, not a standardized WEXP record or evidence of protocol conformance.",
   "type": "object",
   "required": [
     "record_kind", "record_version", "execution_id", "subject", "source",

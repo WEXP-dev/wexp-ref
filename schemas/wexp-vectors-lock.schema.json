@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "wexp-vectors-lock.schema.json",
-  "title": "WEXP public-vector dependency lock",
+  "title": "WEXP vector dependency lock",
   "type": "object",
   "required": ["lock_version", "dependency", "repository", "status"],
   "properties": {
