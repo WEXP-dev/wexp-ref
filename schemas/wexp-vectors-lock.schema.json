@@ -2,36 +2,35 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "wexp-vectors-lock.schema.json",
   "title": "WEXP vector dependency lock",
+  "description": "An immutable identity for the reviewed Core -00 candidate vector package.",
   "type": "object",
-  "required": ["lock_version", "dependency", "repository", "status"],
-  "properties": {
-    "lock_version": {"const": 1},
-    "dependency": {"const": "wexp-vectors"},
-    "repository": {"type": "string", "minLength": 1},
-    "status": {"enum": ["pinned", "blocked"]}
-  },
-  "allOf": [
-    {
-      "if": {"properties": {"status": {"const": "pinned"}}},
-      "then": {
-        "required": ["commit", "manifest_sha256"],
-        "properties": {
-          "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-          "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
-        }
-      }
-    },
-    {
-      "if": {"properties": {"status": {"const": "blocked"}}},
-      "then": {
-        "required": ["blocked_reason", "required_resolution"],
-        "properties": {
-          "blocked_reason": {"type": "string", "minLength": 1},
-          "required_resolution": {"type": "string", "minLength": 1}
-        },
-        "not": {"anyOf": [{"required": ["commit"]}, {"required": ["revision"]}, {"required": ["ref"]}]}
-      }
-    }
+  "additionalProperties": false,
+  "required": [
+    "lock_version",
+    "dependency",
+    "repository",
+    "status",
+    "package_status",
+    "commit",
+    "manifest_path",
+    "manifest_sha256"
   ],
-  "unevaluatedProperties": false
+  "properties": {
+    "lock_version": {"const": 2},
+    "dependency": {"const": "wexp-vectors"},
+    "repository": {"const": "WEXP-dev/wexp-vectors"},
+    "status": {"const": "pinned"},
+    "package_status": {"const": "candidate"},
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "manifest_path": {
+      "type": "string",
+      "minLength": 1,
+      "allOf": [
+        {"pattern": "^(?!/).+$"},
+        {"pattern": "^(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+        {"not": {"pattern": "\\\\"}}
+      ]
+    },
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
 }

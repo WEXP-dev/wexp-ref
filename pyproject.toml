@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wexp-ref"
-version = "0.1.0.dev0"
-description = "Reference tooling and generic execution runner for WEXP"
+version = "0.2.0.dev0"
+description = "Reference implementation and execution tooling for published WEXP specifications"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"

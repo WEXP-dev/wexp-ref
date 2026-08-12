@@ -1,7 +1,14 @@
 {
-  "status": "BLOCKED",
+  "status": "CANDIDATE_PINNED",
   "repository": "WEXP-dev/wexp-vectors",
-  "reason": "No normative WEXP vector package has been released, and the current workflow does not download or run vectors.",
-  "effect": "Cross-repository vector execution was not run and must not be reported as PASS.",
-  "resolution": "After a normative WEXP vector package is intentionally released, pin its immutable identity and add a reviewed acquisition and execution step before reporting cross-repository vector execution as PASS."
+  "commit": "f5ea3f429b7b89c3a324a5581f9009a5d670e29c",
+  "manifest_path": "manifests/vectors.json",
+  "manifest_sha256": "7cea69feae2f5aff309881e7228f5a7bf62ca3cdaa672d0de9d6324022cff306",
+  "scope": "Seven specification-derived Core -00 candidate vectors encoded in a non-normative test representation.",
+  "effect": "CI may fetch this exact public commit and execute only its candidate Core -00 vector slice.",
+  "non_claims": [
+    "The package is not designated normative or conformance-establishing.",
+    "Execution does not establish complete Core -00 correctness.",
+    "Execution does not establish independent external interoperability."
+  ]
 }
