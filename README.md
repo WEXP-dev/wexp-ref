@@ -117,8 +117,9 @@ standardized protocol-record status.
 The checked-in lock identifies `WEXP-dev/wexp-vectors` commit
 `f5ea3f429b7b89c3a324a5581f9009a5d670e29c` and manifest SHA-256
 `7cea69feae2f5aff309881e7228f5a7bf62ca3cdaa672d0de9d6324022cff306`.
-Both identities are checked before execution. CI also confirms that the fetched
-Git checkout has exactly the locked commit.
+The manifest identity and every manifest-bound file digest are checked before
+execution. CI additionally confirms that the fetched Git checkout has exactly
+the locked commit.
 
 The evaluator is deliberately revision-scoped. It accepts only the frozen
 Core `-00` harness facts used by the candidate vectors and rejects other

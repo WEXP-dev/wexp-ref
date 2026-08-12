@@ -133,10 +133,17 @@ def _attainable(item: Mapping[str, Any]) -> int:
     claim = _LEVELS.index(item["claimed_level"])
     supported = 0
 
-    if evidence["arguments_hash"]:
-        supported = min(boundary_base, 2)
-    if boundary_base >= 3 and evidence["execution_fields"]:
+    # Core -00 Section 7.1 evaluates each level only when it does not exceed
+    # the claim and that level's own conditional fields are present. Higher
+    # level fields therefore cannot satisfy a lower claim whose own fields are
+    # absent.
+    if claim >= 1 and boundary_base >= 1 and evidence["arguments_hash"]:
+        supported = 1
+    if claim >= 2 and boundary_base >= 2 and evidence["arguments_hash"]:
+        supported = 2
+    if claim >= 3 and boundary_base >= 3 and evidence["execution_fields"]:
         supported = 3
+    if boundary_base >= 3 and evidence["execution_fields"]:
         if claim >= 4 and evidence["bound_provenance"]:
             supported = 4
         if claim >= 5 and evidence["bound_independent_verification"]:

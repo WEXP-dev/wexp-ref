@@ -173,6 +173,24 @@ class EvaluatorTests(unittest.TestCase):
             {"verdict": "downgrade", "verified_level": "WL2"},
         )
 
+    def test_higher_level_fields_do_not_satisfy_lower_claim_fields(self) -> None:
+        for claimed_level in ("WL1", "WL2"):
+            with self.subTest(claimed_level=claimed_level):
+                value = harness_input()
+                value.update(
+                    boundary_type="host-hook",
+                    claimed_level=claimed_level,
+                    effective_conformance_class="CC5",
+                )
+                value["evidence"].update(
+                    arguments_hash=False,
+                    execution_fields=True,
+                )
+                self.assertEqual(
+                    evaluate(value),
+                    {"verdict": "downgrade", "verified_level": "WL0"},
+                )
+
     def test_unknown_critical_extension_rejects_before_level_evaluation(self) -> None:
         value = harness_input()
         value["unknown_extensions"] = [{"name": "slice-unknown", "critical": True}]
