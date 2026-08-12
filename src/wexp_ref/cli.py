@@ -11,13 +11,26 @@ from pathlib import Path
 from typing import Any
 
 from wexp_ref import __version__
+from wexp_ref.core00 import PackageError, run_package
 from wexp_ref.locks import validate_vectors_lock
 from wexp_ref.runner import PlanError, run_plan
 
 
+class JsonInputError(ValueError):
+    """A JSON object contains duplicate member names."""
+
+
 def _read_json(path: Path) -> Any:
+    def reject_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise JsonInputError(f"duplicate JSON member {key!r} in {path}")
+            value[key] = item
+        return value
+
     with path.open("r", encoding="utf-8") as stream:
-        return json.load(stream)
+        return json.load(stream, object_pairs_hook=reject_duplicates)
 
 
 def _write_json(value: Any, path: Path | None) -> None:
@@ -66,7 +79,7 @@ def _xml(args: argparse.Namespace) -> int:
 def _run(args: argparse.Namespace) -> int:
     try:
         record = run_plan(_read_json(args.plan), args.workspace)
-    except (PlanError, OSError, json.JSONDecodeError) as exc:
+    except (PlanError, JsonInputError, OSError, json.JSONDecodeError) as exc:
         sys.stderr.write(f"plan error: {exc}\n")
         return 2
     _write_json(record, args.record)
@@ -74,9 +87,23 @@ def _run(args: argparse.Namespace) -> int:
 
 
 def _lock(args: argparse.Namespace) -> int:
-    result = validate_vectors_lock(_read_json(args.input))
+    try:
+        result = validate_vectors_lock(_read_json(args.input))
+    except (JsonInputError, OSError, json.JSONDecodeError) as exc:
+        sys.stderr.write(f"lock error: {exc}\n")
+        return 2
     _write_json(result, args.output)
     return 0 if result["status"].startswith("VALID_") else 2
+
+
+def _core00_run_vectors(args: argparse.Namespace) -> int:
+    try:
+        result = run_package(args.package, _read_json(args.lock))
+    except (PackageError, JsonInputError, OSError, json.JSONDecodeError) as exc:
+        sys.stderr.write(f"Core -00 package error: {exc}\n")
+        return 2
+    _write_json(result, args.output)
+    return 0 if result["summary"]["status"] == "PASS" else 1
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -103,6 +130,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     lock.add_argument("--output", "-o", type=Path)
     lock.set_defaults(handler=_lock)
+
+    core00_package = commands.add_parser(
+        "core00-run-vectors",
+        help="run the exact pinned Core -00 candidate vector package",
+    )
+    core00_package.add_argument("package", type=Path)
+    core00_package.add_argument(
+        "--lock", type=Path, default=Path("config/wexp-vectors.lock.json")
+    )
+    core00_package.add_argument("--output", "-o", type=Path)
+    core00_package.set_defaults(handler=_core00_run_vectors)
     return parser
 
 

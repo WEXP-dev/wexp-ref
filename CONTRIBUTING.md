@@ -4,7 +4,7 @@
 WEXP.
 
 Developers should be able to implement and test WEXP from published
-specifications and released implementation-independent vectors without treating
+specifications and implementation-independent vectors without treating
 `wexp-ref` as authoritative. Vector expectations must come from specification
 requirements, not from this repository's output.
 
@@ -37,12 +37,17 @@ actionlint
 
 When working without installation, use `PYTHONPATH=src`.
 
-No normative WEXP vector package has been released, so the checked-in lock is
-marked `blocked`. Before CI can run an intentionally released normative vector
-package, the package must have an immutable identity and the workflow must use
-a reviewed step to acquire and execute it. Never report an unexecuted check as
-PASS. Floating revisions such as `main`, `latest`, or `HEAD` must not appear in
-evidence.
+No normative WEXP vector package has been released. The checked-in lock instead
+identifies one reviewed candidate package by exact commit and manifest digest.
+CI must confirm both identities before executing it. Never report an
+unexecuted check as PASS. Floating revisions such as `main`, `latest`, or
+`HEAD` must not appear in evidence.
+
+Core `-00` slice changes must retain the revision-scoped requirement and vector
+identities, the non-normative test-representation label, and the frozen expected
+results. If specification review proves an expectation wrong, document the
+derivation defect in the vector project; do not change an expectation merely to
+match this implementation.
 
 ## Runner and security
 

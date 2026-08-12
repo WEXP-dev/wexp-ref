@@ -4,9 +4,10 @@ WEXP (Witnessed Execution Protocol) is an IETF-oriented specification effort
 for evaluating support for claims about software and AI execution within
 explicit evidence and observation boundaries.
 
-This repository is for the WEXP reference implementation and related test
-tools. The current Python 3.12+ package checks XML parsing and the
-`wexp-vectors` dependency lock and provides a generic execution runner.
+This repository contains the WEXP reference implementation and related test
+tools. The current Python 3.12+ package implements a small, revision-scoped
+Core `-00` vector slice. It also checks XML parsing and the `wexp-vectors`
+dependency lock and provides a generic execution runner.
 
 > The WEXP specifications are authoritative. This implementation does not
 > define WEXP.
@@ -37,21 +38,28 @@ requirements. Pre-publication development is maintained separately.
 
 The CLI currently provides:
 
+- `core00-run-vectors`: execute the specification-derived Core `-00` candidate
+  vectors from the exact package named by the dependency lock;
 - `validate-xml`: parse an XML file and report its SHA-256 digest;
-- `validate-lock`: check whether the `wexp-vectors` dependency lock is pinned
-  or explicitly blocked; and
+- `validate-lock`: check the exact `wexp-vectors` dependency identity; and
 - `run`: execute a declarative argv-only plan and record observations.
 
-These commands do not parse, emit, or semantically verify a WEXP protocol
-record. A successful XML parse does not establish conformance with WEXP or IETF
-acceptance. Lock validation checks dependency metadata only; it neither
-executes vectors nor proves protocol correctness.
+The Core `-00` commands consume an abstract test representation, not a WEXP
+record or wire format. They implement only the rules exercised by the first
+vector slice. A successful XML parse does not establish conformance with WEXP
+or IETF acceptance. Lock validation checks dependency metadata only; the
+separate package command performs the vector execution.
 
 ## Current limitations
 
-- The package does not yet implement the Core `-00` verification model.
-- No normative WEXP vector package has been released. The dependency lock is
-  marked `blocked`, and CI does not download or run vectors.
+- The package does not yet implement the full Core `-00` verification model.
+  It does not parse or verify Core records, signatures, timestamps, key
+  bindings, capabilities documents, recorder qualifications, or chains. The
+  test harness supplies reviewed facts for these out-of-slice checks.
+- No normative WEXP vector package has been released. The dependency lock pins
+  an exact candidate package of specification-derived vectors; CI fetches and
+  executes only that commit. The candidate is not designated normative or
+  conformance-establishing.
 - The runner is not a sandbox. Its observations are specific to this
   implementation, not standardized WEXP records or evidence of conformance.
 
@@ -64,6 +72,8 @@ python3 -m pip install --no-deps .
 wexp-ref --version
 wexp-ref validate-lock
 wexp-ref validate-xml path/to/document.xml
+wexp-ref core00-run-vectors path/to/exact/wexp-vectors \
+  --output build/core00-results.json
 python3 scripts/validate_repository.py
 ```
 
@@ -99,16 +109,25 @@ Every emitted record states that it does not establish IETF acceptance,
 independent implementation conformance, complete WEXP correctness, or
 standardized protocol-record status.
 
-## Reproducibility and vectors
+## Core -00 vector slice
 
-The checked-in vector lock is marked `blocked` without a guessed commit or
-digest. The workflow does not download or run vectors, and it does not report
-cross-repository vector execution as PASS.
+The checked-in lock identifies `WEXP-dev/wexp-vectors` commit
+`714a0ea4b269a5f8845adf727adfa6e6bba5bb03` and manifest SHA-256
+`7cea69feae2f5aff309881e7228f5a7bf62ca3cdaa672d0de9d6324022cff306`.
+The manifest identity and every manifest-bound file digest are checked before
+execution. CI additionally confirms that the fetched Git checkout has exactly
+the locked commit.
 
-After a normative WEXP vector package is intentionally released, its immutable
-identity and manifest digest can be pinned before the workflow is extended with
-a reviewed step to acquire and run it. A known identity and actual execution
-remain separate evidence.
+The evaluator is deliberately revision-scoped. It accepts only the frozen
+Core `-00` harness facts used by the candidate vectors and rejects other
+boundary types or input members. Expected results remain part of the vector
+package; `wexp-ref` reports agreement or disagreement without rewriting them.
+The result file is deterministic and machine-readable.
+
+The candidate package contains seven specification-derived test vectors. It is
+not a released normative vector package or a conformance suite. A known
+identity, successful execution, and agreement with expected results are
+separate evidence and do not prove the full specification.
 
 GitHub Actions runs the same generic CLI; the workflow does not define WEXP
 semantics. It uses least-privilege read permissions and exact action commit
@@ -118,10 +137,11 @@ repository.
 ## Repository map
 
 ```text
+src/wexp_ref/core00/      first-slice evaluator and exact package driver
 src/wexp_ref/runner/      CI-neutral argv runner and observation producer
-src/wexp_ref/locks.py     vector-lock validation
+src/wexp_ref/locks.py     immutable vector-lock validation
 src/wexp_ref/cli.py       command-line interface and XML parse/hash check
-config/                   vector dependency status
+config/                   exact vector dependency identity and execution scope
 schemas/                  runner-specific plan, observation, and lock schemas
 examples/                 generic development-only runner plan
 provenance/               public genesis inventory and non-claims

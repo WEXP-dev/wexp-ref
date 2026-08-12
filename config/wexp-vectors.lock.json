@@ -1,8 +1,10 @@
 {
-  "lock_version": 1,
+  "lock_version": 2,
   "dependency": "wexp-vectors",
   "repository": "WEXP-dev/wexp-vectors",
-  "status": "blocked",
-  "blocked_reason": "No normative WEXP vector package has been released.",
-  "required_resolution": "After a normative WEXP vector package is intentionally released, pin its immutable commit and manifest digest before reviewed acquisition and execution."
+  "status": "pinned",
+  "package_status": "candidate",
+  "commit": "714a0ea4b269a5f8845adf727adfa6e6bba5bb03",
+  "manifest_path": "manifests/vectors.json",
+  "manifest_sha256": "7cea69feae2f5aff309881e7228f5a7bf62ca3cdaa672d0de9d6324022cff306"
 }
