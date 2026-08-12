@@ -38,8 +38,6 @@ requirements. Pre-publication development is maintained separately.
 
 The CLI currently provides:
 
-- `core00-evaluate`: evaluate one abstract input in revision 1 of the
-  non-normative Core `-00` test harness;
 - `core00-run-vectors`: execute the specification-derived Core `-00` candidate
   vectors from the exact package named by the dependency lock;
 - `validate-xml`: parse an XML file and report its SHA-256 digest;
@@ -74,7 +72,6 @@ python3 -m pip install --no-deps .
 wexp-ref --version
 wexp-ref validate-lock
 wexp-ref validate-xml path/to/document.xml
-wexp-ref core00-evaluate path/to/harness-input.json
 wexp-ref core00-run-vectors path/to/exact/wexp-vectors \
   --output build/core00-results.json
 python3 scripts/validate_repository.py

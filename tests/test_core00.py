@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import tempfile
 import unittest
 from copy import deepcopy
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from wexp_ref.core00 import Core00InputError, PackageError, evaluate, run_package
+from wexp_ref.cli import main as cli_main
 
 CORE_XML_SHA256 = "6cd8b680059cc81e1ec4c84737d9319ee242ef63e89c57de497bd57ede08d810"
 
@@ -57,7 +60,7 @@ def vector(value: dict | None = None) -> dict:
             "status": "non-normative-test-representation",
         },
         "input": input_value,
-        "expected": evaluate(input_value),
+        "expected": {"verdict": "accept", "verified_level": "WL2"},
         "derivation": {"source_locators": ["test"], "steps": ["test"]},
     }
 
@@ -199,6 +202,15 @@ class EvaluatorTests(unittest.TestCase):
             {"verdict": "reject", "errors": ["E_UNKNOWN_CRITICAL_EXTENSION"]},
         )
 
+    def test_extension_names_must_be_unique(self) -> None:
+        value = harness_input()
+        value["unknown_extensions"] = [
+            {"name": "slice-unknown", "critical": False},
+            {"name": "slice-unknown", "critical": True},
+        ]
+        with self.assertRaisesRegex(Core00InputError, "unique names"):
+            evaluate(value)
+
     def test_unknown_input_member_is_rejected(self) -> None:
         value = harness_input()
         value["future"] = True
@@ -216,6 +228,14 @@ class EvaluatorTests(unittest.TestCase):
         value["evidence"]["arguments_hash"] = 1
         with self.assertRaisesRegex(Core00InputError, "must be a boolean"):
             evaluate(value)
+
+    def test_non_string_scalar_fields_fail_cleanly(self) -> None:
+        for field in ("boundary_type", "effective_conformance_class"):
+            with self.subTest(field=field):
+                value = harness_input()
+                value[field] = []
+                with self.assertRaises(Core00InputError):
+                    evaluate(value)
 
 
 class PackageTests(unittest.TestCase):
@@ -293,6 +313,32 @@ class PackageTests(unittest.TestCase):
                 self.skipTest(f"symbolic links unavailable: {exc}")
             with self.assertRaisesRegex(PackageError, "symbolic link"):
                 run_package(root, lock)
+
+    def test_unhashable_requirement_id_is_rejected_cleanly(self) -> None:
+        item = vector()
+        item["requirement_ids"] = [[]]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with self.assertRaisesRegex(PackageError, "invalid requirement_ids"):
+                run_package(root, package(root, item))
+
+    def test_package_cli_reports_malformed_vector_without_traceback(self) -> None:
+        item = vector()
+        item["requirement_ids"] = [[]]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            lock_path = root / "lock.json"
+            write_json(lock_path, package(root, item))
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                status = cli_main(
+                    ["core00-run-vectors", str(root), "--lock", str(lock_path)]
+                )
+        self.assertEqual(2, status)
+        self.assertEqual("", stdout.getvalue())
+        self.assertIn("Core -00 package error:", stderr.getvalue())
+        self.assertNotIn("Traceback", stderr.getvalue())
 
 
 if __name__ == "__main__":

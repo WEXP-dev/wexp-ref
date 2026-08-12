@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from wexp_ref import __version__
-from wexp_ref.core00 import Core00InputError, PackageError, evaluate, run_package
+from wexp_ref.core00 import PackageError, run_package
 from wexp_ref.locks import validate_vectors_lock
 from wexp_ref.runner import PlanError, run_plan
 
@@ -96,16 +96,6 @@ def _lock(args: argparse.Namespace) -> int:
     return 0 if result["status"].startswith("VALID_") else 2
 
 
-def _core00_evaluate(args: argparse.Namespace) -> int:
-    try:
-        result = evaluate(_read_json(args.input))
-    except (Core00InputError, JsonInputError, OSError, json.JSONDecodeError) as exc:
-        sys.stderr.write(f"Core -00 input error: {exc}\n")
-        return 2
-    _write_json(result, args.output)
-    return 0
-
-
 def _core00_run_vectors(args: argparse.Namespace) -> int:
     try:
         result = run_package(args.package, _read_json(args.lock))
@@ -140,14 +130,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     lock.add_argument("--output", "-o", type=Path)
     lock.set_defaults(handler=_lock)
-
-    core00 = commands.add_parser(
-        "core00-evaluate",
-        help="evaluate one input in the non-normative Core -00 slice harness",
-    )
-    core00.add_argument("input", type=Path)
-    core00.add_argument("--output", "-o", type=Path)
-    core00.set_defaults(handler=_core00_evaluate)
 
     core00_package = commands.add_parser(
         "core00-run-vectors",

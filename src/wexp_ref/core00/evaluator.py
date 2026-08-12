@@ -6,6 +6,7 @@ abstract facts fixed by revision 1 of the Core -00 test harness.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any, NoReturn
 
@@ -48,6 +49,7 @@ _INPUT_FIELDS = {
     "evidence",
     "unknown_extensions",
 }
+_EXTENSION_NAME = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
 class Core00InputError(ValueError):
@@ -85,7 +87,7 @@ def _validated_input(value: Any) -> Mapping[str, Any]:
             _fail(f"input.prior_checks.{name} must be {required!r}")
 
     boundary = item["boundary_type"]
-    if boundary not in _BOUNDARY_BASE:
+    if not isinstance(boundary, str) or boundary not in _BOUNDARY_BASE:
         _fail(
             "input.boundary_type is outside the first slice; supported values are "
             + ", ".join(sorted(_BOUNDARY_BASE))
@@ -94,7 +96,7 @@ def _validated_input(value: Any) -> Mapping[str, Any]:
     if claim not in _LEVELS[1:]:
         _fail("input.claimed_level must be WL1 through WL5")
     capability = item["effective_conformance_class"]
-    if capability not in _CAPABILITY_CEILING:
+    if not isinstance(capability, str) or capability not in _CAPABILITY_CEILING:
         _fail("input.effective_conformance_class must be CC0 through CC5")
 
     evidence = _object(item["evidence"], "input.evidence")
@@ -106,22 +108,18 @@ def _validated_input(value: Any) -> Mapping[str, Any]:
     extensions = item["unknown_extensions"]
     if not isinstance(extensions, list):
         _fail("input.unknown_extensions must be an array")
-    seen: set[tuple[str, bool]] = set()
+    seen: set[str] = set()
     for index, extension_value in enumerate(extensions):
         extension = _object(extension_value, f"input.unknown_extensions[{index}]")
         _exact_members(extension, {"name", "critical"}, f"input.unknown_extensions[{index}]")
         name = extension["name"]
-        if not isinstance(name, str) or not name or not name[0].islower() or not all(
-            character.islower() or character.isdigit() or character == "-"
-            for character in name
-        ):
+        if not isinstance(name, str) or _EXTENSION_NAME.fullmatch(name) is None:
             _fail(f"input.unknown_extensions[{index}].name is invalid")
         if type(extension["critical"]) is not bool:
             _fail(f"input.unknown_extensions[{index}].critical must be a boolean")
-        identity = (name, extension["critical"])
-        if identity in seen:
-            _fail("input.unknown_extensions must contain unique objects")
-        seen.add(identity)
+        if name in seen:
+            _fail("input.unknown_extensions must contain unique names")
+        seen.add(name)
     return item
 
 

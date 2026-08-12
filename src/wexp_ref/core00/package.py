@@ -34,6 +34,8 @@ _VECTOR_FIELDS = {
     "expected",
     "derivation",
 }
+_VECTOR_ID = re.compile(r"^WEXP-CORE-00-V[0-9]{4,}$")
+_REQUIREMENT_ID = re.compile(r"^WEXP-CORE-00-REQ-[0-9]{4,}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -103,7 +105,7 @@ def _vector(value: Any, manifest_item: Mapping[str, Any]) -> Mapping[str, Any]:
     if not isinstance(value, Mapping) or set(value) != _VECTOR_FIELDS:
         _fail("candidate vector has missing or unknown top-level members")
     vector_id = value["vector_id"]
-    if not isinstance(vector_id, str) or not vector_id.startswith("WEXP-CORE-00-V"):
+    if not isinstance(vector_id, str) or _VECTOR_ID.fullmatch(vector_id) is None:
         _fail("candidate vector_id is outside the Core -00 namespace")
     if vector_id != manifest_item.get("vector_id"):
         _fail(f"manifest identity does not match {vector_id}")
@@ -115,16 +117,21 @@ def _vector(value: Any, manifest_item: Mapping[str, Any]) -> Mapping[str, Any]:
     if (
         not isinstance(requirements, list)
         or not requirements
-        or len(requirements) != len(set(requirements))
         or not all(
-            isinstance(item, str) and item.startswith("WEXP-CORE-00-REQ-")
+            isinstance(item, str) and _REQUIREMENT_ID.fullmatch(item) is not None
             for item in requirements
         )
+        or len(requirements) != len(set(requirements))
     ):
         _fail(f"{vector_id} has invalid requirement_ids")
-    if value["classification"] not in {"positive", "negative", "boundary"}:
+    classification = value["classification"]
+    if not isinstance(classification, str) or classification not in {
+        "positive",
+        "negative",
+        "boundary",
+    }:
         _fail(f"{vector_id} has an unsupported classification")
-    if value["classification"] != manifest_item.get("classification"):
+    if classification != manifest_item.get("classification"):
         _fail(f"manifest classification does not match {vector_id}")
     if not isinstance(value["purpose"], str) or not value["purpose"]:
         _fail(f"{vector_id} purpose must be a non-empty string")
