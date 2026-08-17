@@ -1,0 +1,186 @@
+name: Core-01 qualification
+
+# Runs the two independent engines and the comparator over the WEXP Core-01
+# vector corpus. The corpus is not vendored here: it is fetched from the exact
+# wexp-vectors commit pinned in config/wexp-vectors-core01.lock.json, and the
+# fetched manifest digest must match the lock before anything executes.
+#
+# Expected outcomes come from that corpus, which transcribes them from the
+# published Internet-Draft. Engine output is never the source of an expectation.
+#
+# Scheduling is owned by src/wexp_ref/core01/tools/matrix_policy.py so it stays
+# unit-testable rather than buried in a workflow expression:
+#
+#   push                portable only, developer feedback
+#   pull_request        full matrix + portability comparison
+#   workflow_dispatch   full matrix + portability comparison
+#
+# A portable-only push result is not sufficient evidence of qualification
+# readiness. That requires a complete full-matrix observation at one exact head.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/wexp_ref/core01/**'
+      - 'config/wexp-vectors-core01.lock.json'
+      - 'tests/test_core01_qualification.py'
+      - '.github/workflows/core01-qualification.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/wexp_ref/core01/**'
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: schedule
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      include: ${{ steps.policy.outputs.include }}
+      full_matrix: ${{ steps.policy.outputs.full_matrix }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Resolve the scheduling policy
+        id: policy
+        run: |
+          set -euo pipefail
+          python3 src/wexp_ref/core01/tools/matrix_policy.py --event "${{ github.event_name }}"
+          {
+            printf 'include=%s\n' "$(python3 src/wexp_ref/core01/tools/matrix_policy.py \
+              --event "${{ github.event_name }}" --field include)"
+            printf 'full_matrix=%s\n' "$(python3 src/wexp_ref/core01/tools/matrix_policy.py \
+              --event "${{ github.event_name }}" --field full_matrix)"
+          } >>"$GITHUB_OUTPUT"
+
+  qualify:
+    name: qualify (${{ matrix.environment }})
+    needs: plan
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.include) }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: '3.12'
+
+      - name: Fetch the pinned vector corpus
+        run: |
+          set -euo pipefail
+          commit="$(python3 -c 'import json;print(json.load(open("config/wexp-vectors-core01.lock.json"))["commit"])')"
+          git init -q build/wexp-vectors
+          git -C build/wexp-vectors remote add origin https://github.com/WEXP-dev/wexp-vectors.git
+          git -C build/wexp-vectors fetch -q --depth 1 origin "$commit"
+          git -C build/wexp-vectors checkout -q FETCH_HEAD
+          observed="$(git -C build/wexp-vectors rev-parse HEAD)"
+          [ "$observed" = "$commit" ] || { echo "corpus commit mismatch: $observed"; exit 1; }
+
+      - name: Verify the corpus against the lock
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, pathlib, sys
+          lock = json.loads(pathlib.Path("config/wexp-vectors-core01.lock.json").read_bytes())
+          manifest = pathlib.Path("build/wexp-vectors") / lock["manifest_path"]
+          observed = hashlib.sha256(manifest.read_bytes()).hexdigest()
+          if observed != lock["manifest_sha256"]:
+              sys.exit(f"manifest digest mismatch: {observed} != {lock['manifest_sha256']}")
+          print(f"corpus manifest verified: {observed}")
+          PY
+
+      - name: Unit tests and independence firewall
+        if: matrix.environment != 'docker'
+        env:
+          WEXP_CORE01_CORPUS: build/wexp-vectors/vectors/WEXP-CORE-01-VECTORS-001
+          PYTHONPATH: src
+        run: python3 -m unittest discover -s tests -t . -p 'test_core01_*.py' -v
+
+      - name: Qualify (host)
+        if: matrix.environment != 'docker'
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          python3 -m wexp_ref.core01.harness.orchestrate \
+            --candidate "build/wexp-vectors/vectors/WEXP-CORE-01-VECTORS-001" \
+            --output "build/qualification/${{ matrix.environment }}" \
+            --environment "${{ matrix.environment }}"
+
+      - name: Qualify (container)
+        if: matrix.environment == 'docker'
+        run: |
+          set -euo pipefail
+          docker build --platform linux/amd64 -f docker/Dockerfile -t wexp-core01:ci .
+          docker run --rm --platform linux/amd64 \
+            -v "${PWD}/build:/work/build" wexp-core01:ci \
+            --candidate "/work/build/wexp-vectors/vectors/WEXP-CORE-01-VECTORS-001" \
+            --output "/work/build/qualification/docker" \
+            --environment docker
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: core01-qualification-${{ matrix.environment }}
+          path: build/qualification/${{ matrix.environment }}/
+          if-no-files-found: error
+          retention-days: 30
+
+  portability:
+    name: cross-environment portability
+    needs: [plan, qualify]
+    if: needs.plan.outputs.full_matrix == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: '3.12'
+
+      - name: Download evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: evidence
+
+      - name: Compare environments
+        env:
+          PYTHONPATH: src
+          SET: WEXP-CORE-01-VECTORS-001
+        run: |
+          set -euo pipefail
+          python3 src/wexp_ref/core01/tools/compare_environments.py \
+            --bundle "portable=evidence/core01-qualification-portable/${SET}/QUALIFICATION.json" \
+            --bundle "docker=evidence/core01-qualification-docker/${SET}/QUALIFICATION.json" \
+            --bundle "darwin=evidence/core01-qualification-darwin/${SET}/QUALIFICATION.json" \
+            --require-full-matrix \
+            --json build/portability.json
+
+      - name: Upload portability report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: core01-portability-report
+          path: build/portability.json
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,28 @@
+{
+  "description": "Pinned linux/amd64 container image. One generic image; the candidate is a parameter, never baked in.",
+  "environment_specific": [
+    "python_version",
+    "machine"
+  ],
+  "environment_version": 1,
+  "kind": "container",
+  "label": "docker",
+  "portable_claim": [
+    "engine_payload_digests",
+    "comparison_summary",
+    "candidate_identity"
+  ],
+  "probes": [
+    "python_version",
+    "python_implementation",
+    "system",
+    "machine",
+    "byteorder",
+    "filesystem_case_sensitive",
+    "temp_path_is_symlinked",
+    "path_separator"
+  ],
+  "require": {
+    "system": "Linux"
+  }
+}

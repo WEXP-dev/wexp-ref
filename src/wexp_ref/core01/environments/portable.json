@@ -1,0 +1,28 @@
+{
+  "description": "Host Python, no container and no platform requirement. The baseline every other environment is compared against.",
+  "environment_specific": [
+    "python_version",
+    "machine",
+    "system",
+    "filesystem_case_sensitive",
+    "temp_path_is_symlinked"
+  ],
+  "environment_version": 1,
+  "kind": "portable",
+  "label": "portable",
+  "portable_claim": [
+    "engine_payload_digests",
+    "comparison_summary",
+    "candidate_identity"
+  ],
+  "probes": [
+    "python_version",
+    "python_implementation",
+    "system",
+    "machine",
+    "byteorder",
+    "filesystem_case_sensitive",
+    "temp_path_is_symlinked",
+    "path_separator"
+  ]
+}

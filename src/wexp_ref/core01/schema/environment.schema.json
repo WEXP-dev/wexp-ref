@@ -1,0 +1,73 @@
+{
+  "$id": "urn:wexp:qualification:environment:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Declares how a qualification environment is identified and observed. It names probes from a fixed registry the harness implements; it contains no expressions.",
+  "properties": {
+    "description": {
+      "type": "string"
+    },
+    "environment_specific": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_]{2,63}$",
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "environment_version": {
+      "const": 1
+    },
+    "kind": {
+      "enum": [
+        "portable",
+        "container",
+        "native"
+      ]
+    },
+    "label": {
+      "pattern": "^[a-z][a-z0-9-]{1,31}$",
+      "type": "string"
+    },
+    "portable_claim": {
+      "items": {
+        "enum": [
+          "engine_payload_digests",
+          "comparison_summary",
+          "candidate_identity"
+        ]
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "probes": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_]{2,63}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "require": {
+      "additionalProperties": {
+        "type": [
+          "string",
+          "boolean",
+          "integer"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "environment_version",
+    "label",
+    "kind",
+    "probes",
+    "portable_claim"
+  ],
+  "title": "WEXP qualification environment descriptor",
+  "type": "object"
+}
