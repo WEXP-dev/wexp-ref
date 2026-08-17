@@ -92,12 +92,14 @@ def build(seed_path: Path, output_root: Path, *, force: bool = False) -> Path:
 
     bound_files: list[dict[str, Any]] = []
     for path in sorted((root / "vectors").glob("*.json")):
+        # One read: the digest and the size recorded here describe the same bytes.
+        artifact = canonical.read_artifact(path)
         bound_files.append(
             {
                 "kind": "test-vector",
                 "path": f"vectors/{path.name}",
-                "sha256": canonical.file_sha256(path),
-                "bytes": canonical.file_bytes(path),
+                "sha256": artifact.sha256,
+                "bytes": artifact.size,
             }
         )
 

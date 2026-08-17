@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -34,16 +35,61 @@ def _reject_constant(value: str) -> None:
     raise CanonicalError(f"non-standard JSON constant: {value}")
 
 
-def load_json(path: Path) -> Any:
-    """Read JSON strictly: no duplicate keys, no NaN/Infinity, UTF-8 only."""
+@dataclass(frozen=True)
+class Artifact:
+    """One filesystem read, and everything derived from that single buffer.
+
+    Digest, size and parsed value all describe the same bytes because there is
+    only ever one read. Hashing a file and then parsing it in a second,
+    independent read cannot be proven to describe the same content: anything that
+    rewrites the path between the two makes the recorded digest attest to bytes
+    that were never evaluated. Evidence identity must not depend on the filesystem
+    holding still, so no artifact that contributes to one is read twice.
+    """
+
+    path: Path
+    raw: bytes
+    sha256: str
+
+    @property
+    def size(self) -> int:
+        return len(self.raw)
+
+    def json(self) -> Any:
+        """Parse the buffer this digest was computed over. No second read."""
+        return loads_bytes(self.raw, origin=str(self.path))
+
+
+def read_artifact(path: Path) -> Artifact:
+    """Read a path exactly once and bind its bytes, digest and size together."""
 
     if path.is_symlink():
         raise CanonicalError(f"symlinks are not accepted: {path}")
     try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
+        raw = path.read_bytes()
+    except OSError as exc:
         raise CanonicalError(f"{path}: unreadable: {exc}") from exc
-    return loads(text, origin=str(path))
+    return Artifact(path=path, raw=raw, sha256=hashlib.sha256(raw).hexdigest())
+
+
+def loads_bytes(raw: bytes, *, origin: str = "<bytes>") -> Any:
+    """Parse a UTF-8 JSON buffer under the same rules as ``loads``."""
+
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeError as exc:
+        raise CanonicalError(f"{origin}: not valid UTF-8: {exc}") from exc
+    return loads(text, origin=origin)
+
+
+def load_json(path: Path) -> Any:
+    """Read JSON strictly: no duplicate keys, no NaN/Infinity, UTF-8 only.
+
+    For anything whose digest is recorded, use ``read_artifact`` instead so the
+    digest and the parse cannot disagree.
+    """
+
+    return read_artifact(path).json()
 
 
 def loads(text: str, *, origin: str = "<string>") -> Any:
@@ -71,22 +117,11 @@ def canonical_sha256(value: Any) -> str:
     return hashlib.sha256(canonical_bytes(value)).hexdigest()
 
 
-def file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    try:
-        with path.open("rb") as stream:
-            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-                digest.update(chunk)
-    except OSError as exc:
-        raise CanonicalError(f"{path}: unreadable: {exc}") from exc
-    return digest.hexdigest()
-
-
-def file_bytes(path: Path) -> int:
-    try:
-        return path.stat().st_size
-    except OSError as exc:
-        raise CanonicalError(f"{path}: unreadable: {exc}") from exc
+# ``file_sha256`` and ``file_bytes`` were removed rather than kept alongside
+# ``read_artifact``. Both digested or measured a path independently of whoever
+# parsed it, so any caller pairing one with a load reintroduced the two-read
+# defect. Deleting them makes the single-read invariant structural instead of a
+# convention a future caller has to remember.
 
 
 def write_canonical(path: Path, value: Any) -> str:
