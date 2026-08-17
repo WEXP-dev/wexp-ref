@@ -9,7 +9,9 @@ FROM python:3.12-slim-bookworm@sha256:a116514e19457bcb7af7efe9c3dd0b9b71e85b3176
 # so there is no dependency resolution inside the image and nothing to pin
 # beyond the interpreter itself.
 WORKDIR /work
-COPY qualification /work/qualification
+COPY src/wexp_ref /work/wexp_ref
 
-ENTRYPOINT ["python3", "/work/wexp_ref/core01/harness/orchestrate.py"]
+# Run as a module so the package's own imports resolve.
+ENV PYTHONPATH=/work
+ENTRYPOINT ["python3", "-m", "wexp_ref.core01.harness.orchestrate"]
 CMD ["--help"]
