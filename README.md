@@ -215,6 +215,22 @@ and the candidate identity are identical across environments. Anything
 environment-specific — interpreter build, machine, filesystem case sensitivity —
 is recorded but deliberately excluded from that claim.
 
+### When the matrix passed, and when it did not
+
+The two states must not be collapsed:
+
+- **At Core-01 publication time** the hosted cross-platform matrix was
+  `DEFERRED — INFRASTRUCTURE UNAVAILABLE`. It was **not** a pass, and was
+  deliberately never recorded as one. The publication candidate
+  `PC-core-01-001` was issued on that basis.
+- **After publication**, once the tooling was public and public runners were
+  available, the full matrix completed **PASS** — the current state shown above.
+
+The later pass does not retroactively alter `PC-core-01-001` or the
+publication-time qualification state, and it is not a prerequisite attached to
+revision 01 after the fact. It is recorded as
+`POST-PUBLICATION COMPLETION OF DEFERRED EVIDENCE`.
+
 ### What a pass means
 
 Sixteen transcribed expectations were met by two independent implementations in
