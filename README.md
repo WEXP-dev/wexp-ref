@@ -5,9 +5,10 @@ for evaluating support for claims about software and AI execution within
 explicit evidence and observation boundaries.
 
 This repository contains the WEXP reference implementation and related test
-tools. The current Python 3.12+ package implements a small, revision-scoped
-Core `-00` vector slice. It also checks XML parsing and the `wexp-vectors`
-dependency lock and provides a generic execution runner.
+tools, as a Python 3.12+ package. It qualifies the posted Core `-01`
+specification with two structurally independent engines and a comparator, runs a
+small revision-scoped Core `-00` vector slice, checks XML parsing and the
+`wexp-vectors` dependency lock, and provides a generic execution runner.
 
 > The WEXP specifications are authoritative. This implementation does not
 > define WEXP.
@@ -18,9 +19,10 @@ IETF acceptance, or the validity of an execution claim.
 
 ## Relationship to the specifications
 
-The currently published WEXP specification is
-[Core `-00`](https://datatracker.ietf.org/doc/html/draft-sergeev-wexp-core-00),
-an Internet-Draft. The reference implementation may lag behind the specifications.
+The current WEXP specification is
+[Core `-01`](https://datatracker.ietf.org/doc/draft-sergeev-wexp-core/01/),
+an Internet-Draft posted 2026-08-17; Core `-00` remains available as the previous
+revision. Neither is an Internet Standard. The reference implementation may lag behind the specifications.
 A missing feature here does not mean that it is absent from a specification.
 This implementation cannot add, replace, or reinterpret specification
 requirements. Pre-publication development is maintained separately.
@@ -28,16 +30,29 @@ requirements. Pre-publication development is maintained separately.
 ## WEXP repositories
 
 - [Specifications — `wexp-spec`](https://github.com/WEXP-dev/wexp-spec) —
-  published WEXP specifications and their provenance.
+  published WEXP specifications and their provenance. **Authoritative.**
 - [Test vectors — `wexp-vectors`](https://github.com/WEXP-dev/wexp-vectors) —
-  schemas and validation tools for implementation-independent WEXP test vectors.
-- [Reference implementation — `wexp-ref`](https://github.com/WEXP-dev/wexp-ref)
-  — the reference implementation and generic execution tools.
+  vectors derived from those specifications, with their schemas and validators.
+- [Reference implementation — `wexp-ref`](https://github.com/WEXP-dev/wexp-ref) —
+  this repository. It **consumes** the vectors at a pinned commit and never
+  defines an expected outcome.
+
+The direction is one-way and does not reverse:
+
+```text
+WEXP specifications -> vectors -> this implementation
+```
+
+If this implementation and a vector disagree, this implementation is wrong until
+the specification says otherwise.
 
 ## Available
 
 The CLI currently provides:
 
+- Core `-01` qualification (`python3 -m wexp_ref.core01.harness.orchestrate`):
+  run both independent engines and the comparator over the pinned Core `-01`
+  vector corpus;
 - `core00-run-vectors`: execute the specification-derived Core `-00` candidate
   vectors from the exact package named by the dependency lock;
 - `validate-xml`: parse an XML file and report its SHA-256 digest;
@@ -134,39 +149,6 @@ semantics. It uses least-privilege read permissions and exact action commit
 pins. Ordinary checks require neither secrets nor a private development
 repository.
 
-## Repository map
-
-```text
-src/wexp_ref/core00/      first-slice evaluator and exact package driver
-src/wexp_ref/runner/      CI-neutral argv runner and observation producer
-src/wexp_ref/locks.py     immutable vector-lock validation
-src/wexp_ref/cli.py       command-line interface and XML parse/hash check
-config/                   exact vector dependency identity and execution scope
-schemas/                  runner-specific plan, observation, and lock schemas
-examples/                 generic development-only runner plan
-provenance/               public genesis inventory and non-claims
-scripts/                  local validation and Action-pin checks
-tests/                    generic runner and lock tests
-```
-
-## Licensing
-
-Repository-authored reference implementation software and tooling are licensed
-under the [Apache License 2.0](LICENSE) unless explicitly stated otherwise.
-WEXP specifications remain separately authoritative and are not licensed by
-this software license merely because the implementation refers to them.
-
-## Public genesis
-
-The [public genesis manifest](provenance/PUBLIC-GENESIS.json) inventories the
-files in this repository's first authorized public commit. That root commit
-does not imply that the included work was created or first published at that
-time.
-
-## Contributing
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution and review guidance.
-
 ## Core-01 qualification
 
 `src/wexp_ref/core01/` runs two structurally independent engines and a
@@ -192,8 +174,12 @@ expectation-aware component.
 ### Running it
 
     pip install -e .
+
+    # Fetch the exact corpus commit this repository pins. Never track a branch:
+    # the lock is what makes a result reproducible.
+    COMMIT=$(python3 -c 'import json;print(json.load(open("config/wexp-vectors-core01.lock.json"))["commit"])')
     git clone https://github.com/WEXP-dev/wexp-vectors build/wexp-vectors
-    git -C build/wexp-vectors checkout <commit from the lock>
+    git -C build/wexp-vectors checkout "$COMMIT"
 
     PYTHONPATH=src python3 -m wexp_ref.core01.harness.orchestrate \
       --candidate build/wexp-vectors/vectors/WEXP-CORE-01-VECTORS-001 \
@@ -205,6 +191,29 @@ expectation-aware component.
 
 Without `WEXP_CORE01_CORPUS` the corpus-dependent tests skip rather than pass
 silently.
+
+### Public matrix
+
+[`core01-qualification.yml`](.github/workflows/core01-qualification.yml) runs the
+set in three declared environments and then compares them:
+
+| Environment | Runner | Kind |
+|---|---|---|
+| `portable` | `ubuntu-latest` | host Python, no container, no platform requirement |
+| `docker` | `ubuntu-latest` | pinned `linux/amd64` image, digest-locked |
+| `darwin` | `macos-15` | native macOS arm64 |
+
+Scheduling is owned by
+[`matrix_policy.py`](src/wexp_ref/core01/tools/matrix_policy.py) rather than
+buried in a workflow expression: a push runs `portable` only, while a pull
+request or manual dispatch runs the full matrix plus the portability comparison.
+**A portable-only push result is not evidence of qualification readiness**; that
+needs a complete full-matrix observation at one exact head.
+
+The comparison asserts that the engine payload digests, the comparison summary
+and the candidate identity are identical across environments. Anything
+environment-specific — interpreter build, machine, filesystem case sensitivity —
+is recorded but deliberately excluded from that claim.
 
 ### What a pass means
 
@@ -235,3 +244,40 @@ What this does **not** say:
 
 The fix changes no recorded value: engine payload digests and the evidence bundle
 digest are byte-identical before and after.
+
+## Repository map
+
+```text
+src/wexp_ref/core01/      Core -01 qualification: harness, two independent
+                          engines, comparator, declared environments, schemas
+src/wexp_ref/core00/      first-slice evaluator and exact package driver
+src/wexp_ref/runner/      CI-neutral argv runner and observation producer
+src/wexp_ref/locks.py     immutable vector-lock validation
+src/wexp_ref/cli.py       command-line interface and XML parse/hash check
+config/                   exact vector dependency identities, including the
+                          pinned Core -01 corpus lock
+docker/                   pinned linux/amd64 image for the container environment
+schemas/                  runner-specific plan, observation, and lock schemas
+examples/                 generic development-only runner plan
+provenance/               public genesis inventory and non-claims
+scripts/                  local validation and Action-pin checks
+tests/                    generic runner and lock tests
+```
+
+## Licensing
+
+Repository-authored reference implementation software and tooling are licensed
+under the [Apache License 2.0](LICENSE) unless explicitly stated otherwise.
+WEXP specifications remain separately authoritative and are not licensed by
+this software license merely because the implementation refers to them.
+
+## Public genesis
+
+The [public genesis manifest](provenance/PUBLIC-GENESIS.json) inventories the
+files in this repository's first authorized public commit. That root commit
+does not imply that the included work was created or first published at that
+time.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution and review guidance.
