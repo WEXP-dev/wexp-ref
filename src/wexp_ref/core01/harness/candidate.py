@@ -136,8 +136,16 @@ def _resolve_inside(root: Path, relative: str, *, what: str) -> Path:
     return candidate
 
 
-def _verify_bound_files(root: Path, descriptor: dict[str, Any]) -> None:
+def _verify_bound_files(root: Path, descriptor: dict[str, Any]) -> dict[Path, canonical.Artifact]:
+    """Verify every bound file and return the buffers that were verified.
+
+    The returned artifacts are the ones later stages must use. Re-reading a file
+    after verifying it would put the verified digest and the evaluated content in
+    two different reads, which is exactly what this loader must not do.
+    """
+
     seen: set[str] = set()
+    artifacts: dict[Path, canonical.Artifact] = {}
     for entry in descriptor["bound_files"]:
         relative = entry["path"]
         if relative in seen:
@@ -146,16 +154,17 @@ def _verify_bound_files(root: Path, descriptor: dict[str, Any]) -> None:
         path = _resolve_inside(root, relative, what="bound_files")
         if not path.is_file():
             raise CandidateError(f"bound_files: missing file {relative!r}")
-        actual = canonical.file_sha256(path)
-        if actual != entry["sha256"]:
+        artifact = canonical.read_artifact(path)
+        if artifact.sha256 != entry["sha256"]:
             raise CandidateError(
-                f"bound_files: SHA-256 mismatch for {relative!r}: declared {entry['sha256']}, observed {actual}"
+                f"bound_files: SHA-256 mismatch for {relative!r}: declared {entry['sha256']}, observed {artifact.sha256}"
             )
-        size = canonical.file_bytes(path)
-        if size != entry["bytes"]:
+        if artifact.size != entry["bytes"]:
             raise CandidateError(
-                f"bound_files: size mismatch for {relative!r}: declared {entry['bytes']}, observed {size}"
+                f"bound_files: size mismatch for {relative!r}: declared {entry['bytes']}, observed {artifact.size}"
             )
+        artifacts[path] = artifact
+    return artifacts
 
 
 def _cross_check_vector(vector: Vector, candidate_id: str, profile: dict[str, Any]) -> None:
@@ -214,7 +223,8 @@ def load(root: Path) -> Candidate:
         raise CandidateError(f"candidate directory does not exist: {root}")
 
     descriptor_path = root / "descriptor.json"
-    descriptor = canonical.load_json(descriptor_path)
+    descriptor_artifact = canonical.read_artifact(descriptor_path)
+    descriptor = descriptor_artifact.json()
     _validate(descriptor, "descriptor", "descriptor.json")
     if descriptor["descriptor_version"] not in SUPPORTED_DESCRIPTOR_VERSIONS:
         raise CandidateError(f"unsupported descriptor_version: {descriptor['descriptor_version']}")
@@ -224,17 +234,18 @@ def load(root: Path) -> Candidate:
         )
 
     profile_path = _resolve_inside(root, descriptor["profile"]["path"], what="profile")
-    profile_digest = canonical.file_sha256(profile_path)
+    profile_artifact = canonical.read_artifact(profile_path)
+    profile_digest = profile_artifact.sha256
     if profile_digest != descriptor["profile"]["sha256"]:
         raise CandidateError(
             f"profile digest mismatch: declared {descriptor['profile']['sha256']}, observed {profile_digest}"
         )
-    profile = canonical.load_json(profile_path)
+    profile = profile_artifact.json()
     _validate(profile, "profile", "profile.json")
     if profile["profile_version"] not in SUPPORTED_PROFILE_VERSIONS:
         raise CandidateError(f"unsupported profile_version: {profile['profile_version']}")
 
-    _verify_bound_files(root, descriptor)
+    bound = _verify_bound_files(root, descriptor)
 
     vector_schema = _load_schema("vector")
     vectors: list[Vector] = []
@@ -242,7 +253,11 @@ def load(root: Path) -> Candidate:
     if not vector_dir.is_dir():
         raise CandidateError("candidate has no vectors/ directory")
     for path in sorted(vector_dir.glob("*.json")):
-        payload = canonical.load_json(path)
+        # Reuse the buffer bound_files already verified. A vector that is not a
+        # bound file was never covered by that check, so it is read here once and
+        # its digest comes from that same buffer.
+        artifact = bound.get(path.resolve()) or canonical.read_artifact(path)
+        payload = artifact.json()
         try:
             schema_module.validate(payload, vector_schema, location=path.name)
         except (schema_module.ValidationError, schema_module.SchemaError) as exc:
@@ -250,7 +265,7 @@ def load(root: Path) -> Candidate:
         vector = Vector(
             vector_id=payload["vector_id"],
             path=path,
-            sha256=canonical.file_sha256(path),
+            sha256=artifact.sha256,
             payload=payload,
         )
         if path.stem != vector.vector_id:
@@ -281,7 +296,7 @@ def load(root: Path) -> Candidate:
     return Candidate(
         root=root,
         descriptor=descriptor,
-        descriptor_sha256=canonical.file_sha256(descriptor_path),
+        descriptor_sha256=descriptor_artifact.sha256,
         profile=profile,
         profile_sha256=profile_digest,
         vectors=tuple(vectors),

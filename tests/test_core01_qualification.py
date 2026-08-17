@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -177,8 +178,9 @@ class TestQualification(unittest.TestCase):
         descriptor = json.loads((staged / "descriptor.json").read_text())
         for entry in descriptor["bound_files"]:
             if entry["path"].endswith("TV-0001.json"):
-                entry["sha256"] = canonical.file_sha256(target)
-                entry["bytes"] = canonical.file_bytes(target)
+                restaged = canonical.read_artifact(target)
+                entry["sha256"] = restaged.sha256
+                entry["bytes"] = restaged.size
         canonical.write_canonical(staged / "descriptor.json", descriptor)
         outcome = qualify(staged, self.output, environment_label="portable")
         self.assertNotEqual(outcome.status, QUALIFIED)
@@ -852,3 +854,111 @@ class TestFrozenCoreQualificationFixes(unittest.TestCase):
         # of a separate not-evaluated entry for another claim."
         actual = self.actual("C14")
         self.assertNotIn("E_COUNTER_EVIDENCE_DEFEATING", actual["substantive_reasons"])
+
+
+class TestSingleReadInvariant(unittest.TestCase):
+    """GAP-0014: an artifact that contributes to an evidence identity is read once.
+
+    Hashing one read and parsing a second cannot be proven to describe the same
+    bytes. These tests assert the property structurally — that there is no second
+    read — rather than asserting that two reads happened to agree.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.dir = Path(self._tmp.name)
+
+    def test_the_digest_is_over_the_buffer_that_gets_parsed(self) -> None:
+        target = self.dir / "a.json"
+        raw = b'{\n  "b": 2,\n  "a": 1\n}\n'
+        target.write_bytes(raw)
+        artifact = canonical.read_artifact(target)
+        self.assertEqual(artifact.raw, raw)
+        self.assertEqual(artifact.sha256, hashlib.sha256(raw).hexdigest())
+        self.assertEqual(artifact.size, len(raw))
+        self.assertEqual(artifact.json(), json.loads(raw))
+
+    def test_the_digest_is_over_original_bytes_not_a_re_serialisation(self) -> None:
+        target = self.dir / "spaced.json"
+        raw = b'{"a":   1}'
+        target.write_bytes(raw)
+        artifact = canonical.read_artifact(target)
+        self.assertEqual(artifact.sha256, hashlib.sha256(raw).hexdigest())
+        self.assertNotEqual(artifact.sha256, canonical.canonical_sha256({"a": 1}))
+
+    def test_loading_a_candidate_reads_every_artifact_exactly_once(self) -> None:
+        staged = self.dir / "WEXP-SYNTH-CANDIDATE-A"
+        shutil.copytree(CANDIDATE, staged)
+        counts: dict[str, int] = {}
+        original = Path.read_bytes
+
+        def counting(self_path: Path) -> bytes:
+            counts[str(self_path)] = counts.get(str(self_path), 0) + 1
+            return original(self_path)
+
+        Path.read_bytes = counting  # type: ignore[method-assign]
+        try:
+            load(staged)
+        finally:
+            Path.read_bytes = original  # type: ignore[method-assign]
+
+        repeated = {path: n for path, n in counts.items() if n > 1 and str(staged) in path}
+        self.assertEqual(repeated, {}, msg=f"artifact read more than once: {repeated}")
+        self.assertTrue(counts, msg="the counter observed no reads at all")
+
+    def test_a_mutation_after_the_read_cannot_desynchronise_digest_and_content(self) -> None:
+        """If a second read existed, this fixture would expose it: every read after
+        the first returns different bytes. A consistent result proves there is
+        exactly one read backing both the digest and the payload."""
+        staged = self.dir / "WEXP-SYNTH-CANDIDATE-A"
+        shutil.copytree(CANDIDATE, staged)
+        victim = sorted((staged / "vectors").glob("*.json"))[0]
+        original = Path.read_bytes
+        served: dict[str, bytes] = {}
+
+        def mutating(self_path: Path) -> bytes:
+            raw = original(self_path)
+            if self_path.name == victim.name and "vectors" in self_path.parts:
+                if self_path.name in served:
+                    return b'{"tampered": true}'
+                served[self_path.name] = raw
+            return raw
+
+        Path.read_bytes = mutating  # type: ignore[method-assign]
+        try:
+            candidate = load(staged)
+        finally:
+            Path.read_bytes = original  # type: ignore[method-assign]
+
+        vector = next(v for v in candidate.vectors if v.path.name == victim.name)
+        first_read = served[victim.name]
+        self.assertEqual(vector.sha256, hashlib.sha256(first_read).hexdigest())
+        self.assertEqual(vector.payload, json.loads(first_read))
+
+    def test_malformed_bytes_still_fail(self) -> None:
+        for name, raw in (
+            ("truncated.json", b'{"a": '),
+            ("duplicate.json", b'{"a": 1, "a": 2}'),
+            ("constant.json", b'{"a": NaN}'),
+            ("latin1.json", '{"a": "é"}'.encode("latin-1")),
+        ):
+            target = self.dir / name
+            target.write_bytes(raw)
+            with self.subTest(name=name):
+                with self.assertRaises(canonical.CanonicalError):
+                    canonical.read_artifact(target).json()
+
+    def test_symlinked_artifacts_are_still_refused(self) -> None:
+        real = self.dir / "real.json"
+        real.write_bytes(b"{}")
+        link = self.dir / "link.json"
+        link.symlink_to(real)
+        with self.assertRaises(canonical.CanonicalError):
+            canonical.read_artifact(link)
+
+    def test_the_independent_read_helpers_are_gone(self) -> None:
+        """Keeping them would let a future caller pair one with a load and
+        reintroduce exactly the defect this change removes."""
+        self.assertFalse(hasattr(canonical, "file_sha256"))
+        self.assertFalse(hasattr(canonical, "file_bytes"))

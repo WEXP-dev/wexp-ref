@@ -210,3 +210,28 @@ silently.
 
 Sixteen transcribed expectations were met by two independent implementations in
 every declared environment. It is not certification, conformance, or endorsement.
+
+### GAP-0014 — single-read artifact loading
+
+**FIXED POST-PUBLICATION IN WEXP-REF.**
+
+Earlier revisions of this loader could hash one filesystem read and parse a
+second, independent read of the same path. Under a concurrent writer the digest
+recorded in an evidence bundle could therefore describe bytes that were never
+evaluated. Verdicts were unaffected; the integrity of the evidence identity was
+not.
+
+`canonical.read_artifact()` now reads a path exactly once and binds its bytes,
+digest and size together; `Artifact.json()` parses that same buffer. The helpers
+that digested or measured a path independently of whoever parsed it were removed
+rather than kept, so the invariant is structural rather than a convention.
+
+What this does **not** say:
+
+- it does not say the private pre-publication harness had been fixed;
+- it does not say the publication-time qualification used this corrected loader;
+- it does not change `PC-core-01-001`, the published Core-01, the vector corpus
+  or any expected outcome.
+
+The fix changes no recorded value: engine payload digests and the evidence bundle
+digest are byte-identical before and after.
