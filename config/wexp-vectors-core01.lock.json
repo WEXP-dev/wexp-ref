@@ -1,0 +1,10 @@
+{
+  "lock_version": 2,
+  "dependency": "wexp-vectors",
+  "repository": "WEXP-dev/wexp-vectors",
+  "status": "pinned",
+  "package_status": "candidate",
+  "commit": "9615a79442ccfe3cc5456b7db7d9a2265fecc4d4",
+  "manifest_path": "manifests/core-01-vectors.json",
+  "manifest_sha256": "c08ff4fd6e4ee7de8c6450bb3e6f72c0ac6f1242c3d7251b81f339826de38ba7"
+}

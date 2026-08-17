@@ -166,3 +166,47 @@ time.
 ## Contributing
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution and review guidance.
+
+## Core-01 qualification
+
+`src/wexp_ref/core01/` runs two structurally independent engines and a
+comparator over the WEXP Core-01 vector corpus.
+
+The corpus is **not** vendored here. It is fetched from the exact
+`WEXP-dev/wexp-vectors` commit pinned in `config/wexp-vectors-core01.lock.json`,
+and the fetched manifest digest must match the lock before anything executes.
+Expected outcomes come from that corpus, which transcribes them from the
+published Internet-Draft. Engine output is never the source of an expectation —
+if an engine and a vector disagree, the engine is wrong until the specification
+says otherwise.
+
+### Independence
+
+The two engines share no semantic module. `independent` works in set algebra over
+keyed support entries with a guard-callable ingress; `reference` works in bitmask
+arithmetic over ordered record accumulation with a numbered position table. A
+firewall test walks their imports and fails if either reaches into the other or
+into anything outside the small shared harness. The comparator is the only
+expectation-aware component.
+
+### Running it
+
+    pip install -e .
+    git clone https://github.com/WEXP-dev/wexp-vectors build/wexp-vectors
+    git -C build/wexp-vectors checkout <commit from the lock>
+
+    PYTHONPATH=src python3 -m wexp_ref.core01.harness.orchestrate \
+      --candidate build/wexp-vectors/vectors/WEXP-CORE-01-VECTORS-001 \
+      --output build/qualification/portable \
+      --environment portable
+
+    WEXP_CORE01_CORPUS=build/wexp-vectors/vectors/WEXP-CORE-01-VECTORS-001 \
+      PYTHONPATH=src python3 -m unittest discover -s tests -t . -p 'test_core01_*.py'
+
+Without `WEXP_CORE01_CORPUS` the corpus-dependent tests skip rather than pass
+silently.
+
+### What a pass means
+
+Sixteen transcribed expectations were met by two independent implementations in
+every declared environment. It is not certification, conformance, or endorsement.

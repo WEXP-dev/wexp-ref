@@ -27,5 +27,11 @@ package-dir = { "" = "src" }
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# Schemas, declared environments and synthetic seeds are data the harness reads
+# at run time; without this they are absent from an installed distribution and
+# the package works only from a source checkout.
+"wexp_ref.core01" = ["schema/*.json", "environments/*.json", "seeds/*.json"]
+
 [tool.unittest]
 start-directory = "tests"

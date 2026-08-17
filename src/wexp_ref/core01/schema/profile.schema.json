@@ -1,0 +1,444 @@
+{
+  "$id": "urn:wexp:qualification:profile:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Candidate-specific semantic variation as reviewed data. Deliberately declarative: it names vocabulary and orders fixed rule classes; it contains no expressions and no interpreted language.",
+  "properties": {
+    "harness": {
+      "additionalProperties": false,
+      "properties": {
+        "harness_schema_id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "vector_schema_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "harness_schema_id",
+        "vector_schema_id"
+      ],
+      "type": "object"
+    },
+    "non_claims": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "orderings": {
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "items": {
+            "pattern": "^[a-z][a-z0-9-]{1,63}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "qualifier": {
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "base",
+        "qualifier"
+      ],
+      "type": "object"
+    },
+    "profile_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$",
+      "type": "string"
+    },
+    "profile_version": {
+      "const": 1
+    },
+    "qualifier_admissibility": {
+      "additionalProperties": {
+        "items": {
+          "pattern": "^[a-z][a-z0-9-]{1,63}$",
+          "type": "string"
+        },
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "description": "Optional. Restricts a qualifier to a set of bases. The rule that such a restriction exists is engine algorithm; which qualifier is restricted to which base is candidate data.",
+      "propertyNames": {
+        "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "qualifier_independence": {
+      "additionalProperties": {
+        "pattern": "^[a-z][a-z0-9-]{1,63}$",
+        "type": "string"
+      },
+      "description": "Optional. The independence-validation value a qualifier requires. The rule that a qualifier may carry such a requirement is engine algorithm; the required value is candidate data.",
+      "propertyNames": {
+        "pattern": "^[A-Z][A-Z0-9_]{1,31}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "recorder_relation_components": {
+      "description": "The logical components whose equality defines recorder-relation identity. Which components exist is candidate data; that equality is componentwise and total is engine algorithm.",
+      "items": {
+        "pattern": "^[a-z][a-z0-9_]{1,63}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "representation": {
+      "minItems": 1,
+      "type": "string"
+    },
+    "scope_keys": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9-]{1,63}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "semantics_version": {
+      "pattern": "^[a-z][a-z0-9-]{2,63}$",
+      "type": "string"
+    },
+    "status_domains": {
+      "additionalProperties": {
+        "items": {
+          "pattern": "^[a-z][a-z0-9-]{1,63}$",
+          "type": "string"
+        },
+        "minItems": 1,
+        "type": "array",
+        "uniqueItems": true
+      },
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]{1,63}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "token_registry": {
+      "additionalProperties": false,
+      "description": "Role-keyed token vocabulary. Engines implement the fixed roles; the profile names the token emitted for each role and declares foreign tokens that must be rejected.",
+      "properties": {
+        "classes": {
+          "additionalProperties": false,
+          "properties": {
+            "fatal": {
+              "items": {
+                "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            "gap": {
+              "items": {
+                "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            "substantive": {
+              "items": {
+                "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "fatal",
+            "substantive",
+            "gap"
+          ],
+          "type": "object"
+        },
+        "derived_only": {
+          "description": "Tokens the appraiser derives and which are therefore invalid as supplied fatal members.",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "foreign_rejected": {
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "roles": {
+          "additionalProperties": false,
+          "description": "Role-keyed token vocabulary. The engines implement the fixed decision positions; the profile names the token emitted at each. Only the minimum set is required: a role is needed solely when the candidate's semantics actually reach that position, and reaching an undeclared position fails closed.",
+          "properties": {
+            "base_exceeds_boundary": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "base_not_evaluated": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "binding_mismatch": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "boundary_not_evaluated": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "boundary_not_supported": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "chain_description_invalid": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "chain_unbound": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "claim_out_of_domain": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "composition_not_evaluated": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "composition_warrant_missing": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "counter_evidence_defeating": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "counter_evidence_not_evaluated": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "counter_evidence_unresolved": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "evidence_coverage_mismatch": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "evidence_not_bound": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "exact_claim_not_supported": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "independence_not_established": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "integrity_invalid": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "iv_not_supported": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "malformed_normalized_input": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "missing_required_evidence": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "profile_mapping_invalid": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "prov_not_evaluated": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "prov_not_supported": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "qualifier_not_evaluated": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "shared_verification_root": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "unknown_critical": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            },
+            "unsupported_semantics_version": {
+              "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "unknown_critical",
+            "base_exceeds_boundary",
+            "missing_required_evidence",
+            "counter_evidence_unresolved",
+            "qualifier_not_evaluated"
+          ],
+          "type": "object"
+        },
+        "supplied_fatal": {
+          "description": "The only fatal tokens a carrier or profile may supply.",
+          "items": {
+            "pattern": "^[A-Z][A-Z0-9_]{2,63}$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "roles",
+        "classes",
+        "foreign_rejected"
+      ],
+      "type": "object"
+    },
+    "vector_bindings": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "classification": {
+            "pattern": "^[a-z][a-z0-9-]{1,63}$",
+            "type": "string"
+          },
+          "requirement_ids": {
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          },
+          "source_fixture": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requirement_ids",
+          "source_fixture",
+          "classification"
+        ],
+        "type": "object"
+      },
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$",
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "verdict_rules": {
+      "additionalProperties": false,
+      "description": "Ordered precedence over rule classes the engines implement. The profile chooses the order and the emitted verdict label; it does not define new conditions.",
+      "properties": {
+        "precedence": {
+          "items": {
+            "enum": [
+              "fatal",
+              "substantive",
+              "default"
+            ]
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "verdicts": {
+          "additionalProperties": false,
+          "properties": {
+            "default": {
+              "enum": [
+                "reject",
+                "downgrade",
+                "accept"
+              ]
+            },
+            "fatal": {
+              "enum": [
+                "reject",
+                "downgrade",
+                "accept"
+              ]
+            },
+            "substantive": {
+              "enum": [
+                "reject",
+                "downgrade",
+                "accept"
+              ]
+            }
+          },
+          "required": [
+            "fatal",
+            "substantive",
+            "default"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "precedence",
+        "verdicts"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "profile_version",
+    "profile_id",
+    "semantics_version",
+    "representation",
+    "harness",
+    "scope_keys",
+    "status_domains",
+    "orderings",
+    "token_registry",
+    "verdict_rules",
+    "vector_bindings"
+  ],
+  "title": "WEXP qualification candidate semantic profile",
+  "type": "object"
+}

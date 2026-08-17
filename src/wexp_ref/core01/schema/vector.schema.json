@@ -1,0 +1,94 @@
+{
+  "$id": "urn:wexp:qualification:vector:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The generic envelope only. The contents of input/expected are semantic payloads that each engine interprets; the generic layer deliberately does not define their internals.",
+  "properties": {
+    "candidate_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$",
+      "type": "string"
+    },
+    "classification": {
+      "pattern": "^[a-z][a-z0-9-]{1,63}$",
+      "type": "string"
+    },
+    "derivation": {
+      "description": "Free-form provenance note. Frozen Candidate-001 vectors carry an object here; the generic layer does not interpret it.",
+      "type": [
+        "string",
+        "object"
+      ]
+    },
+    "expected": {
+      "type": "object"
+    },
+    "expected_code": {
+      "description": "Null is admissible: a fixed-rejection vector carries no expected code.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "harness_representation": {
+      "minItems": 1,
+      "type": "string"
+    },
+    "input": {
+      "type": "object"
+    },
+    "purpose": {
+      "minItems": 1,
+      "type": "string"
+    },
+    "requirement_ids": {
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "snapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$",
+          "type": "string"
+        },
+        "xml_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "xml_sha256"
+      ],
+      "type": "object"
+    },
+    "source_fixture": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+      "type": "string"
+    },
+    "vector_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "vector_id",
+    "candidate_id",
+    "snapshot",
+    "requirement_ids",
+    "source_fixture",
+    "classification",
+    "purpose",
+    "harness_representation",
+    "input",
+    "expected_code",
+    "expected"
+  ],
+  "title": "WEXP qualification vector envelope",
+  "type": "object"
+}

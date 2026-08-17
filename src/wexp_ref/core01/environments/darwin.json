@@ -1,0 +1,29 @@
+{
+  "description": "Native macOS. Recorded because its filesystem is case-insensitive by default and its temporary paths resolve through /private, neither of which holds on the Linux environments.",
+  "environment_specific": [
+    "filesystem_case_sensitive",
+    "temp_path_is_symlinked",
+    "machine"
+  ],
+  "environment_version": 1,
+  "kind": "native",
+  "label": "darwin",
+  "portable_claim": [
+    "engine_payload_digests",
+    "comparison_summary",
+    "candidate_identity"
+  ],
+  "probes": [
+    "python_version",
+    "python_implementation",
+    "system",
+    "machine",
+    "byteorder",
+    "filesystem_case_sensitive",
+    "temp_path_is_symlinked",
+    "path_separator"
+  ],
+  "require": {
+    "system": "Darwin"
+  }
+}

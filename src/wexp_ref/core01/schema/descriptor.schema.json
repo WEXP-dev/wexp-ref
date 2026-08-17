@@ -1,0 +1,131 @@
+{
+  "$id": "urn:wexp:qualification:descriptor:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authority": {
+      "additionalProperties": false,
+      "properties": {
+        "published_specification": {
+          "type": "boolean"
+        },
+        "snapshot_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$",
+          "type": "string"
+        },
+        "snapshot_path": {
+          "type": "string"
+        },
+        "xml_bytes": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "xml_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "snapshot_path",
+        "xml_sha256",
+        "xml_bytes",
+        "published_specification"
+      ],
+      "type": "object"
+    },
+    "bound_files": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "bytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "pattern": "^[a-z][a-z0-9-]{1,63}$",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "path",
+          "sha256",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "candidate_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$",
+      "type": "string"
+    },
+    "counts": {
+      "additionalProperties": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "object"
+    },
+    "descriptor_version": {
+      "const": 1
+    },
+    "frozen_at_utc": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "type": "string"
+    },
+    "immutability_rule": {
+      "type": "string"
+    },
+    "non_claims": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "profile": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "release_status": {
+      "type": "string"
+    },
+    "status": {
+      "minItems": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "descriptor_version",
+    "candidate_id",
+    "status",
+    "authority",
+    "profile",
+    "bound_files",
+    "counts"
+  ],
+  "title": "WEXP qualification candidate descriptor",
+  "type": "object"
+}
