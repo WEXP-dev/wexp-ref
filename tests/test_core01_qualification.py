@@ -962,3 +962,142 @@ class TestSingleReadInvariant(unittest.TestCase):
         reintroduce exactly the defect this change removes."""
         self.assertFalse(hasattr(canonical, "file_sha256"))
         self.assertFalse(hasattr(canonical, "file_bytes"))
+
+
+class TestBundledSpecificationBinding(unittest.TestCase):
+    """The candidate must carry the specification it claims authority from.
+
+    Trusting `authority.xml_sha256` without reading the file leaves the binding
+    unproven: a candidate could name the published Core identity while shipping
+    different bytes, and every downstream result would inherit an authority it
+    never had.
+    """
+
+    CORPUS = Path(os.environ.get("WEXP_CORE01_CORPUS", "")) if os.environ.get("WEXP_CORE01_CORPUS") else None
+
+    def setUp(self) -> None:
+        if self.CORPUS is None or not self.CORPUS.is_dir():
+            raise unittest.SkipTest("set WEXP_CORE01_CORPUS to the pinned wexp-vectors Core-01 set")
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name) / self.CORPUS.name
+        shutil.copytree(self.CORPUS, self.root)
+        self.spec = self.root / "spec" / "draft-sergeev-wexp-core-01.xml"
+
+    def _descriptor(self):
+        return json.loads((self.root / "descriptor.json").read_text(encoding="utf-8"))
+
+    def _write_descriptor(self, payload) -> None:
+        (self.root / "descriptor.json").write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+
+    def _rejects(self, fragment: str) -> None:
+        with self.assertRaises(CandidateError) as caught:
+            load(self.root)
+        self.assertIn(fragment, str(caught.exception))
+
+    def test_a_exact_bundled_bytes_load(self) -> None:
+        self.assertEqual(load(self.root).candidate_id, self._descriptor()["candidate_id"])
+
+    def test_b_one_byte_mutation_is_rejected(self) -> None:
+        self.spec.write_bytes(self.spec.read_bytes() + b"x")
+        self._rejects("bundled specification does not match")
+
+    def test_c_same_length_different_bytes_is_rejected(self) -> None:
+        raw = bytearray(self.spec.read_bytes())
+        raw[-1] = raw[-1] ^ 0x20
+        self.spec.write_bytes(bytes(raw))
+        self._rejects("bundled specification does not match")
+
+    def test_d_declared_digest_changed_is_rejected(self) -> None:
+        d = self._descriptor()
+        d["authority"]["xml_sha256"] = "0" * 64
+        self._write_descriptor(d)
+        self._rejects("bundled specification does not match")
+
+    def test_e_declared_byte_count_changed_is_rejected(self) -> None:
+        d = self._descriptor()
+        d["authority"]["xml_bytes"] = d["authority"]["xml_bytes"] + 1
+        self._write_descriptor(d)
+        self._rejects("size mismatch")
+
+    def test_f_missing_specification_is_rejected(self) -> None:
+        self.spec.unlink()
+        self._rejects("missing specification")
+
+    def test_g_path_escaping_the_candidate_is_rejected(self) -> None:
+        d = self._descriptor()
+        d["authority"]["snapshot_path"] = "../escape.xml"
+        self._write_descriptor(d)
+        self._rejects("escapes the candidate")
+
+    def test_h_symlink_substitution_is_rejected(self) -> None:
+        target = Path(self._tmp.name) / "outside.xml"
+        target.write_bytes(self.spec.read_bytes())
+        self.spec.unlink()
+        self.spec.symlink_to(target)
+        with self.assertRaises(CandidateError):
+            load(self.root)
+
+    def test_i_specification_is_read_once(self) -> None:
+        """Identity and content must come from one read, as for every other
+        artifact whose digest is recorded."""
+        counts: dict[str, int] = {}
+        original = Path.read_bytes
+
+        def counting(self_path: Path) -> bytes:
+            counts[str(self_path)] = counts.get(str(self_path), 0) + 1
+            return original(self_path)
+
+        Path.read_bytes = counting  # type: ignore[method-assign]
+        try:
+            load(self.root)
+        finally:
+            Path.read_bytes = original  # type: ignore[method-assign]
+        spec_reads = [n for path, n in counts.items() if path.endswith("draft-sergeev-wexp-core-01.xml")]
+        self.assertEqual(spec_reads, [1], msg=f"specification read {spec_reads} times")
+
+    def test_semantic_evaluation_cannot_pass_after_a_binding_failure(self) -> None:
+        self.spec.write_bytes(self.spec.read_bytes() + b"x")
+        # The binding fails during load, before any engine runs, so qualify()
+        # cannot reach a verdict at all — it raises rather than returning a
+        # status. Either way a PASS is unreachable; assert the stronger form.
+        with self.assertRaises(CandidateError):
+            qualify(self.root, Path(self._tmp.name) / "out", environment_label="portable")
+
+
+class TestSingleVectorInspection(unittest.TestCase):
+    """An external reader must be able to ask about one vector without
+    reverse-engineering an evidence bundle."""
+
+    CORPUS = Path(os.environ.get("WEXP_CORE01_CORPUS", "")) if os.environ.get("WEXP_CORE01_CORPUS") else None
+
+    def setUp(self) -> None:
+        if self.CORPUS is None or not self.CORPUS.is_dir():
+            raise unittest.SkipTest("set WEXP_CORE01_CORPUS to the pinned wexp-vectors Core-01 set")
+        from wexp_ref.core01.tools import inspect_vector
+        self.inspect = inspect_vector
+
+    def test_selects_by_source_fixture(self) -> None:
+        self.assertEqual(self.inspect.main(["--candidate", str(self.CORPUS), "--vector", "C06"]), 0)
+
+    def test_selects_by_vector_id(self) -> None:
+        code = self.inspect.main(
+            ["--candidate", str(self.CORPUS), "--vector", "WEXP-CORE-01-Q001-TV-0006"]
+        )
+        self.assertEqual(code, 0)
+
+    def test_unknown_vector_fails_and_lists_what_exists(self) -> None:
+        self.assertEqual(self.inspect.main(["--candidate", str(self.CORPUS), "--vector", "C99"]), 1)
+
+    def test_machine_readable_output_carries_expected_and_observed(self) -> None:
+        import contextlib, io
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            self.inspect.main(["--candidate", str(self.CORPUS), "--vector", "C06", "--json"])
+        payload = json.loads(buffer.getvalue())
+        for key in ("input", "expected", "observed", "engines_agree", "expectation_met"):
+            self.assertIn(key, payload)
+        self.assertTrue(payload["expectation_met"])
+        self.assertTrue(payload["engines_agree"])

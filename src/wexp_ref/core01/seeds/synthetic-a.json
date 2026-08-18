@@ -2,14 +2,15 @@
   "authority": {
     "published_specification": false,
     "snapshot_id": "WEXP-SYNTH-SNAPSHOT-A",
-    "snapshot_path": "qualification/seeds/synthetic-a.json",
+    "snapshot_path": "src/wexp_ref/core01/seeds/synthetic-a.json",
     "xml_bytes": 1,
     "xml_sha256": "000000000000000000000000000000000000000000000000000000000000000a"
   },
   "candidate_id": "WEXP-SYNTH-CANDIDATE-A",
   "non_claims": [
     "Synthetic migration fixture. Not a Publication Candidate, not a freeze, not a ceremony.",
-    "Carries no relationship to any real WEXP snapshot or published specification."
+    "Carries no relationship to any real WEXP snapshot or published specification.",
+    "The authority block is a placeholder: published_specification is false, so these fixtures assert no published specification and carry no publication authority. snapshot_path names this seed itself, not a specification artifact."
   ],
   "profile": {
     "harness": {

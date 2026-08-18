@@ -1,1 +1,70 @@
-{"authority":{"published_specification":false,"snapshot_id":"WEXP-SYNTH-SNAPSHOT-A","snapshot_path":"qualification/seeds/synthetic-a.json","xml_bytes":1,"xml_sha256":"000000000000000000000000000000000000000000000000000000000000000a"},"bound_files":[{"bytes":2680,"kind":"test-vector","path":"vectors/WEXP-SYNTH-A-TV-0001.json","sha256":"cc0b3e3ac1512f3fec13616320d2c625310e726d07d1de440e074385bb4a2129"},{"bytes":2463,"kind":"test-vector","path":"vectors/WEXP-SYNTH-A-TV-0002.json","sha256":"f8c436deb449b3e7c853e9874c5a1133d8620d84ba7c7f36a61cf282f72d8919"},{"bytes":2465,"kind":"test-vector","path":"vectors/WEXP-SYNTH-A-TV-0003.json","sha256":"f3a9f2489aec3d9dcc9d7c1ee855ce3e702df3cc6db115e1e5efa717f99c4ef2"},{"bytes":2806,"kind":"test-vector","path":"vectors/WEXP-SYNTH-A-TV-0004.json","sha256":"cd063a4b09eb0244e909bd974390f0ec0f43394801e210973028b34bcd7a6a9d"},{"bytes":3035,"kind":"test-vector","path":"vectors/WEXP-SYNTH-A-TV-0005.json","sha256":"db90b1839e79da20fcc54dd94430573c6920dd0c1a6dc8562cb2642248076427"},{"bytes":3019,"kind":"test-vector","path":"vectors/WEXP-SYNTH-A-TV-0006.json","sha256":"8bfeec2cd5bc80f5c2bdd856db043910f2f530076fbd802b2070c08f694a65ad"},{"bytes":2089,"kind":"test-vector","path":"vectors/WEXP-SYNTH-A-TV-0007.json","sha256":"b17f41a77626de6bcbbfa2519dfc67b5c59e94e77172fb4fc94fa301a8ad9a21"}],"candidate_id":"WEXP-SYNTH-CANDIDATE-A","counts":{"requirements":7,"vectors":7},"descriptor_version":1,"non_claims":["Synthetic migration fixture. Not a Publication Candidate, not a freeze, not a ceremony.","Carries no relationship to any real WEXP snapshot or published specification."],"profile":{"path":"profile.json","sha256":"9839d4c22aad5b5b3321e0b6c9a509a7c1e2d2b728b3867fa041744b72a12f2b"},"release_status":"not-a-publication-candidate","status":"SYNTHETIC-MIGRATION-FIXTURE"}
+{
+  "authority": {
+    "published_specification": false,
+    "snapshot_id": "WEXP-SYNTH-SNAPSHOT-A",
+    "snapshot_path": "src/wexp_ref/core01/seeds/synthetic-a.json",
+    "xml_bytes": 1,
+    "xml_sha256": "000000000000000000000000000000000000000000000000000000000000000a"
+  },
+  "bound_files": [
+    {
+      "bytes": 2680,
+      "kind": "test-vector",
+      "path": "vectors/WEXP-SYNTH-A-TV-0001.json",
+      "sha256": "cc0b3e3ac1512f3fec13616320d2c625310e726d07d1de440e074385bb4a2129"
+    },
+    {
+      "bytes": 2463,
+      "kind": "test-vector",
+      "path": "vectors/WEXP-SYNTH-A-TV-0002.json",
+      "sha256": "f8c436deb449b3e7c853e9874c5a1133d8620d84ba7c7f36a61cf282f72d8919"
+    },
+    {
+      "bytes": 2465,
+      "kind": "test-vector",
+      "path": "vectors/WEXP-SYNTH-A-TV-0003.json",
+      "sha256": "f3a9f2489aec3d9dcc9d7c1ee855ce3e702df3cc6db115e1e5efa717f99c4ef2"
+    },
+    {
+      "bytes": 2806,
+      "kind": "test-vector",
+      "path": "vectors/WEXP-SYNTH-A-TV-0004.json",
+      "sha256": "cd063a4b09eb0244e909bd974390f0ec0f43394801e210973028b34bcd7a6a9d"
+    },
+    {
+      "bytes": 3035,
+      "kind": "test-vector",
+      "path": "vectors/WEXP-SYNTH-A-TV-0005.json",
+      "sha256": "db90b1839e79da20fcc54dd94430573c6920dd0c1a6dc8562cb2642248076427"
+    },
+    {
+      "bytes": 3019,
+      "kind": "test-vector",
+      "path": "vectors/WEXP-SYNTH-A-TV-0006.json",
+      "sha256": "8bfeec2cd5bc80f5c2bdd856db043910f2f530076fbd802b2070c08f694a65ad"
+    },
+    {
+      "bytes": 2089,
+      "kind": "test-vector",
+      "path": "vectors/WEXP-SYNTH-A-TV-0007.json",
+      "sha256": "b17f41a77626de6bcbbfa2519dfc67b5c59e94e77172fb4fc94fa301a8ad9a21"
+    }
+  ],
+  "candidate_id": "WEXP-SYNTH-CANDIDATE-A",
+  "counts": {
+    "requirements": 7,
+    "vectors": 7
+  },
+  "descriptor_version": 1,
+  "non_claims": [
+    "Synthetic migration fixture. Not a Publication Candidate, not a freeze, not a ceremony.",
+    "Carries no relationship to any real WEXP snapshot or published specification.",
+    "The authority block is a placeholder: published_specification is false, so this fixture asserts no published specification and carries no publication authority. snapshot_path is not an operational locator."
+  ],
+  "profile": {
+    "path": "profile.json",
+    "sha256": "9839d4c22aad5b5b3321e0b6c9a509a7c1e2d2b728b3867fa041744b72a12f2b"
+  },
+  "release_status": "not-a-publication-candidate",
+  "status": "SYNTHETIC-MIGRATION-FIXTURE"
+}

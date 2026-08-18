@@ -231,6 +231,69 @@ publication-time qualification state, and it is not a prerequisite attached to
 revision 01 after the fact. It is recorded as
 `POST-PUBLICATION COMPLETION OF DEFERRED EVIDENCE`.
 
+### Inspecting one vector
+
+Qualification evaluates the whole corpus. To understand a single case:
+
+    PYTHONPATH=src python3 -m wexp_ref.core01.tools.inspect_vector \
+      --candidate build/wexp-vectors/vectors/WEXP-CORE-01-VECTORS-001 \
+      --vector C06
+
+`--vector` takes either a fixture name (`C06`) or a vector id
+(`WEXP-CORE-01-Q001-TV-0006`). It prints the asserted claim, the boundary
+ceiling, what the vector expects and why, and what both engines produced. Add
+`--json` for machine-readable output. Exit status is `0` only when both engines
+agree and both match the expectation.
+
+It makes no semantic decision and cannot change a verdict: expectations come
+from the vector, never from an engine.
+
+### Evaluating your own example
+
+You are not limited to the published corpus. A candidate is data — a descriptor,
+a profile and vectors — and `new_candidate` materialises one from a seed:
+
+    PYTHONPATH=src python3 -m wexp_ref.core01.tools.new_candidate \
+      --seed my-seed.json --output build/my-candidate
+
+A seed carries `candidate_id`, `authority`, `profile` and `vectors`. The two
+seeds under [`src/wexp_ref/core01/seeds/`](src/wexp_ref/core01/seeds/) are
+working examples; the profile is where the token registry, the base ordering and
+the scope keys live, and the published Core-01 set's
+[`profile.json`](https://github.com/WEXP-dev/wexp-vectors/blob/main/vectors/WEXP-CORE-01-VECTORS-001/profile.json)
+is the Core-01 registry in full.
+
+`authority` is how a candidate binds to a specification. Set
+`published_specification` to `true` and the harness **requires** the bundled
+specification at `snapshot_path` to hash to `xml_sha256` — loading fails closed
+before any evaluation if it does not. A candidate that claims no published
+specification sets it to `false` and asserts no publication authority.
+
+The tool deliberately does not derive expected results. You author them, from
+the specification. Deriving them from an engine would grade the engine against
+its own output.
+
+Then evaluate as usual:
+
+    PYTHONPATH=src python3 -m wexp_ref.core01.harness.orchestrate \
+      --candidate build/my-candidate --output build/mine --environment portable
+
+#### A worked example: invocation without execution evidence
+
+Suppose a tool invocation was requested and recorded, and nothing captured
+whether it ran. Asserting `execution` while the boundary ceiling stands at
+`invocation` gives:
+
+    verdict          downgrade
+    claim supported  False
+    ceiling          invocation
+
+The tooling refuses to elevate the claim past the evidence that was actually
+captured. `downgrade` means the asserted claim was not supported and a lower one
+may be; `reject` means the claim was inadmissible and nothing is appraised;
+`accept` means the asserted claim held. None of these certify that an action was
+correct, safe, or aligned — WEXP grades evidentiary strength only.
+
 ### What a pass means
 
 Sixteen transcribed expectations were met by two independent implementations in
