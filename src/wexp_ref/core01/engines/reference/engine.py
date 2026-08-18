@@ -90,6 +90,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
         records: list[dict[str, Any]] = []
         seen: list[tuple[int, int]] = []
         substantive: list[str] = []
+        over_ceiling_ranks: set[int] = set()
 
         def remember(claim: dict[str, Any], basis: list[str], limits: list[str]) -> None:
             identity = algebra.encode(profile, claim)[:2]
@@ -103,8 +104,10 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             if not _finding_admitted(profile, finding):
                 continue
             if bases.index(base) > ceiling_rank:
-                if token_for(profile, "base_exceeds_boundary") not in substantive:
-                    substantive.append(token_for(profile, "base_exceeds_boundary"))
+                # Section 8.6 assigns this row to the asserted-base aggregate.
+                # Record the rank; whether it becomes a diagnostic is decided
+                # once the asserted claim is known.
+                over_ceiling_ranks.add(bases.index(base))
                 continue
             remember(
                 {"base": base, "qualifiers": []},
@@ -119,6 +122,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
                     return record
             return None
 
+        admitted_by_base: dict[str, list[tuple[str, dict[str, Any]]]] = {}
         for finding in value.get("qualifier_findings") or []:
             base = finding.get("qualified_base")
             qualifier = finding.get("qualifier")
@@ -130,11 +134,34 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             parent = find_record(base, [])
             if not admitted or parent is None:
                 continue
-            remember(
-                algebra.normalise(profile, {"base": base, "qualifiers": [qualifier]}),
-                algebra.union_in_order([*parent["basis_refs"], *finding.get("basis_refs", [])]),
-                algebra.union_in_order([*parent["limitations"], *finding.get("limitations", [])]),
-            )
+            admitted_by_base.setdefault(base, []).append((qualifier, finding))
+
+        # Section 8.1: A ranges over the subsets of the admitted qualifier set
+        # Q(b). Enumerating one qualifier at a time cannot reach a state such as
+        # (execution, {PROV, IV}), which Section 4.4 admits.
+        for base, contributions in admitted_by_base.items():
+            parent = find_record(base, [])
+            if parent is None:
+                continue
+            count = len(contributions)
+            for mask in range(1, 1 << count):
+                chosen = [contributions[i] for i in range(count) if mask & (1 << i)]
+                names = sorted(q for q, _ in chosen)
+                try:
+                    claim = algebra.normalise(profile, {"base": base, "qualifiers": names})
+                except algebra.ClaimRejected:
+                    continue
+                if algebra.encode(profile, claim)[:2] in seen:
+                    continue
+                remember(
+                    claim,
+                    algebra.union_in_order(
+                        [*parent["basis_refs"], *[r for _, f in chosen for r in f.get("basis_refs", [])]]
+                    ),
+                    algebra.union_in_order(
+                        [*parent["limitations"], *[l for _, f in chosen for l in f.get("limitations", [])]]
+                    ),
+                )
 
         entries = sorted(records, key=lambda record: algebra.sort_key(profile, record["claim"]))
         supported_claims = [record["claim"] for record in entries]
@@ -150,6 +177,8 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             )
         asserted_identity = algebra.encode(profile, asserted)[:2]
         asserted_supported = asserted_identity in seen
+        if bases.index(asserted["base"]) in over_ceiling_ranks:
+            substantive.append(token_for(profile, "base_exceeds_boundary"))
         if not asserted_supported and token_for(profile, "base_exceeds_boundary") not in substantive:
             substantive.append(token_for(profile, "missing_required_evidence"))
 
@@ -232,7 +261,9 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             "semantics_version": profile["semantics_version"],
             "verdict": (
                 verdicts["default"]
-                if asserted_supported and not counter_blocks and not substantive
+                # Section 8.4 / Verdict: exact support plus counter-evidence not
+                # blocking. A non-empty diagnostic set is not a third condition.
+                if asserted_supported and not counter_blocks
                 else verdicts["substantive"]
             ),
             "fatal_reasons": [],
