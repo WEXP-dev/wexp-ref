@@ -59,6 +59,12 @@ def _passes(profile: dict[str, Any], finding: dict[str, Any]) -> bool:
     return binding == "supported" and validation == "supported"
 
 
+# Each qualifier has its own not-evaluated row in Section 8.6, and the rows do
+# not share a token. A profile registers the one it implements; applying that
+# token to a different qualifier would report a row that never fired.
+_ROW_TOKEN_BY_QUALIFIER = (("PROV", "E_PROV_NOT_EVALUATED"), ("IV", "E_IV_NOT_EVALUATED"))
+
+
 def _qualifier_independence_ok(profile: dict[str, Any], qualifier: str, observed: Any) -> bool:
     """Which independence value a qualifier requires is candidate data."""
 
@@ -106,10 +112,15 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
         support: dict[tuple[str, tuple[str, ...]], dict[str, Any]] = {}
         substantive: list[str] = []
         over_ceiling: set[str] = set()
+        # Whether an aggregate was supplied at all, which Section 8.6 treats as a
+        # different question from whether its assessments passed.
+        supplied_bases: set[str] = set()
+        supplied_qualifiers: dict[tuple[str, str], dict[str, Any]] = {}
 
         for finding in value.get("base_findings") or []:
             base = finding.get("base")
             _require(base in bases, "base finding uses an unknown base")
+            supplied_bases.add(base)
             if not _passes(profile, finding):
                 continue
             if bases.index(base) > ceiling_rank:
@@ -140,6 +151,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
                 base in bases and qualifier in profile["orderings"]["qualifier"],
                 "qualifier finding is outside this candidate",
             )
+            supplied_qualifiers[(base, qualifier)] = finding
             base_key = (base, ())
             admitted = (
                 _passes(profile, finding)
@@ -207,14 +219,48 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             )
         asserted_supported = claim_algebra.key(profile, asserted) in support
         exceeds = token_for(profile, "base_exceeds_boundary")
-        # Section 8.6: the boundary-exceeded row requires a usable boundary and a
-        # present asserted-base aggregate whose base is deeper than the ceiling.
-        # Consequently a present supported base excluded by the ceiling produces
-        # this token rather than missing-required-evidence.
+        absent = token_for(profile, "missing_required_evidence")
+        # Section 8.6 is a matrix of independent rows, not a single fallback.
+        # "An absent aggregate triggers only its absence row; status rows require
+        # that aggregate to be present" -- so missing-required-evidence belongs to
+        # the three absence rows and to nothing else that this profile can name.
+        named_a_row = False
+        # The boundary-exceeded row requires a usable boundary and a present
+        # asserted-base aggregate whose base is deeper than the ceiling.
         if asserted["base"] in over_ceiling:
             substantive.append(exceeds)
-        if not asserted_supported and exceeds not in substantive:
-            substantive.append(token_for(profile, "missing_required_evidence"))
+            named_a_row = True
+        if asserted["base"] not in supplied_bases:
+            substantive.append(absent)
+            named_a_row = True
+        for qualifier in asserted["qualifiers"]:
+            if (asserted["base"], qualifier) not in supplied_qualifiers:
+                substantive.append(absent)
+                named_a_row = True
+        # The status row for a supplied qualifier aggregate whose target-binding,
+        # semantic or independence assessment did not run.
+        registered_row = token_for(profile, "qualifier_not_evaluated")
+        pending_qualifier_gaps: list[dict[str, Any]] = []
+        for qualifier, row_token in _ROW_TOKEN_BY_QUALIFIER:
+            if row_token != registered_row or qualifier not in asserted["qualifiers"]:
+                continue
+            finding = supplied_qualifiers.get((asserted["base"], qualifier))
+            if finding is None:
+                continue
+            assessments = (
+                finding.get("target_binding"),
+                finding.get("semantic_validation"),
+                finding.get("independence_validation"),
+            )
+            if any(assessment == "not-evaluated" for assessment in assessments):
+                pending_qualifier_gaps.append(finding)
+                named_a_row = True
+        # Ten Section 8.6 rows have no token in this profile. They stay a declared
+        # absence, and a claim unsupported only for one of their reasons still
+        # collapses onto missing-required-evidence -- but that collapse is what
+        # happens when no row could be named, never on top of one that could.
+        if not asserted_supported and not named_a_row:
+            substantive.append(absent)
 
         relevant = [asserted, *supported_claims]
         counter_domain = _domain(profile, "counter-evidence")
@@ -257,6 +303,22 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
                         "limitations": list(counter.get("limitations", [])),
                     }
                 )
+
+        for finding in pending_qualifier_gaps:
+            gap_tokens.append(registered_row)
+            gap_entries.append(
+                {
+                    "token": registered_row,
+                    "target": value.get("target"),
+                    "evaluation_context_ref": (value.get("evaluation_context") or {}).get("id"),
+                    "affected_claims": [copy.deepcopy(asserted)],
+                    "basis_refs": list(finding.get("basis_refs", [])),
+                    "limitations": list(finding.get("limitations", [])),
+                }
+            )
+            # Section 8.1 counts a finding that determines a gap for the asserted
+            # claim among the premises whose limitations are inherited.
+            inherited.extend(finding.get("limitations", []))
 
         registered_gaps = frozenset(profile["token_registry"]["classes"]["gap"])
         for gap in value.get("profile_evaluation_gaps") or []:
