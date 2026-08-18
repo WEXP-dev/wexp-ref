@@ -24,6 +24,8 @@ and never the reference implementation. It never reads a vector's expectation.
 
 from __future__ import annotations
 
+import itertools
+
 import copy
 from typing import Any
 
@@ -103,6 +105,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
 
         support: dict[tuple[str, tuple[str, ...]], dict[str, Any]] = {}
         substantive: list[str] = []
+        over_ceiling: set[str] = set()
 
         for finding in value.get("base_findings") or []:
             base = finding.get("base")
@@ -110,7 +113,11 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             if not _passes(profile, finding):
                 continue
             if bases.index(base) > ceiling_rank:
-                substantive.append(token_for(profile, "base_exceeds_boundary"))
+                # Section 8.6 scopes this row to "a present asserted-base
+                # aggregate whose base is deeper than the ceiling". An unrelated
+                # finding above the ceiling is simply not supported; it does not
+                # put a diagnostic on someone else's claim.
+                over_ceiling.add(base)
                 continue
             claim = {"base": base, "qualifiers": []}
             key = claim_algebra.key(profile, claim)
@@ -125,6 +132,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
                 ),
             }
 
+        admitted_qualifiers: dict[tuple[str, str], dict[str, Any]] = {}
         for finding in value.get("qualifier_findings") or []:
             base = finding.get("qualified_base")
             qualifier = finding.get("qualifier")
@@ -140,19 +148,48 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             # A qualified claim is lifted only from an already-supported base.
             if not admitted or base_key not in support:
                 continue
-            claim = claim_algebra.normalise(profile, {"base": base, "qualifiers": [qualifier]})
-            key = claim_algebra.key(profile, claim)
-            _require(key not in support, "duplicate semantic qualifier finding")
-            parent = support[base_key]
-            support[key] = {
-                "claim": claim,
-                "basis_refs": claim_algebra.stable_unique(
-                    [*parent["basis_refs"], *finding.get("basis_refs", [])]
-                ),
-                "limitations": claim_algebra.stable_unique(
-                    [*parent["limitations"], *finding.get("limitations", [])]
-                ),
-            }
+            _require(
+                (base, qualifier) not in admitted_qualifiers,
+                "duplicate semantic qualifier finding",
+            )
+            admitted_qualifiers[(base, qualifier)] = finding
+
+        # Section 8.1: for a supported base b, A ranges over the subsets of the
+        # admitted qualifier set Q(b). Lifting one qualifier at a time can never
+        # reach a state such as (execution, {PROV, IV}), which Section 4.4 lists
+        # as admissible.
+        for base_key, parent in list(support.items()):
+            base = base_key[0]
+            # Profile order, not alphabetical: the profile declares the qualifier
+            # ordering and every other projection follows it.
+            order = profile["orderings"]["qualifier"]
+            available = [q for q in order if (base, q) in admitted_qualifiers]
+            for size in range(1, len(available) + 1):
+                for combination in itertools.combinations(available, size):
+                    try:
+                        claim = claim_algebra.normalise(
+                            profile, {"base": base, "qualifiers": list(combination)}
+                        )
+                    except claim_algebra.ClaimError:
+                        # Inadmissible in this profile, e.g. a qualifier that is
+                        # restricted to another base. Not an error: that subset
+                        # simply is not a claim.
+                        continue
+                    key = claim_algebra.key(profile, claim)
+                    if key in support:
+                        continue
+                    contributions = [admitted_qualifiers[(base, q)] for q in combination]
+                    support[key] = {
+                        "claim": claim,
+                        "basis_refs": claim_algebra.stable_unique(
+                            [*parent["basis_refs"],
+                             *[r for f in contributions for r in f.get("basis_refs", [])]]
+                        ),
+                        "limitations": claim_algebra.stable_unique(
+                            [*parent["limitations"],
+                             *[l for f in contributions for l in f.get("limitations", [])]]
+                        ),
+                    }
 
         entries = sorted(
             support.values(), key=lambda entry: claim_algebra.sort_key(profile, entry["claim"])
@@ -170,6 +207,12 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             )
         asserted_supported = claim_algebra.key(profile, asserted) in support
         exceeds = token_for(profile, "base_exceeds_boundary")
+        # Section 8.6: the boundary-exceeded row requires a usable boundary and a
+        # present asserted-base aggregate whose base is deeper than the ceiling.
+        # Consequently a present supported base excluded by the ceiling produces
+        # this token rather than missing-required-evidence.
+        if asserted["base"] in over_ceiling:
+            substantive.append(exceeds)
         if not asserted_supported and exceeds not in substantive:
             substantive.append(token_for(profile, "missing_required_evidence"))
 
@@ -249,7 +292,11 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             "semantics_version": profile["semantics_version"],
             "verdict": (
                 verdicts["default"]
-                if asserted_supported and not counter_blocks and not substantive
+                # Section 8.4 / Verdict: accept requires the asserted claim to be
+                # an exact member of SupportedClaims and counter-evidence not to
+                # block it. Nothing else. A diagnostic set may be non-empty and
+                # the verdict still accept.
+                if asserted_supported and not counter_blocks
                 else verdicts["substantive"]
             ),
             "fatal_reasons": [],

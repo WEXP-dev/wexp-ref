@@ -294,6 +294,15 @@ may be; `reject` means the claim was inadmissible and nothing is appraised;
 `accept` means the asserted claim held. None of these certify that an action was
 correct, safe, or aligned — WEXP grades evidentiary strength only.
 
+### Conformance status
+
+`wexp-ref` implements a **declared partial** Core-01 surface. See
+[`CONFORMANCE.md`](CONFORMANCE.md) for the enumerated implemented rules, the
+enumerated known absences, the three corrected verdict-level deviations, and what
+agreement between the two engines does and does not establish.
+
+Do not describe this implementation as full Core-01 conformance.
+
 ### What a pass means
 
 Sixteen transcribed expectations were met by two independent implementations in

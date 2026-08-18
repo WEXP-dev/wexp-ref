@@ -1101,3 +1101,107 @@ class TestSingleVectorInspection(unittest.TestCase):
             self.assertIn(key, payload)
         self.assertTrue(payload["expectation_met"])
         self.assertTrue(payload["engines_agree"])
+
+
+class TestEXT10VerdictLevelCorrections(unittest.TestCase):
+    """Regressions for the three verdict-level deviations an independent
+    implementation surfaced. Each is derived from the published Core text, not
+    from either engine."""
+
+    CORPUS = Path(os.environ.get("WEXP_CORE01_CORPUS", "")) if os.environ.get("WEXP_CORE01_CORPUS") else None
+
+    def setUp(self) -> None:
+        if self.CORPUS is None or not self.CORPUS.is_dir():
+            raise unittest.SkipTest("set WEXP_CORE01_CORPUS to the pinned wexp-vectors Core-01 set")
+        self.candidate = load(self.CORPUS)
+        self.base_input = self.candidate.vectors[0].payload["input"]
+
+    def _evaluate(self, mutate):
+        import copy
+        from wexp_ref.core01.harness.candidate import Vector
+        payload = copy.deepcopy(self.base_input)
+        mutate(payload)
+        vector = Vector(vector_id="regression", path=Path("regression"), sha256="",
+                        payload={"input": payload})
+        return {name: load_engine(name).evaluate(vector, self.candidate)
+                for name in ("independent", "reference")}
+
+    @staticmethod
+    def _finding(base):
+        return {"base": base, "basis_refs": [base], "evaluation_context_ref": "C",
+                "limitations": [], "reasons": [], "semantic_validation": "supported",
+                "target": "T", "target_binding": "supported"}
+
+    @staticmethod
+    def _qualifier(base, qualifier):
+        return {"qualifier": qualifier, "qualified_base": base,
+                "basis_refs": [f"{qualifier.lower()}-{base}"], "evaluation_context_ref": "C",
+                "independence_validation": ("not-applicable" if qualifier == "PROV" else "supported"),
+                "limitations": [], "reasons": [], "semantic_validation": "supported",
+                "target": "T", "target_binding": "supported"}
+
+    def test_d1_multi_qualifier_state_is_constructed(self) -> None:
+        """Section 8.1: A ranges over the subsets of Q(b). Section 4.4 admits
+        (execution, {PROV, IV}); lifting one qualifier at a time cannot reach it."""
+        def mutate(p):
+            p["asserted_claim"] = {"base": "execution", "qualifiers": ["PROV", "IV"]}
+            p["boundary_finding"]["ceiling_base"] = "execution"
+            p["base_findings"] = [self._finding("execution")]
+            p["qualifier_findings"] = [self._qualifier("execution", "PROV"),
+                                       self._qualifier("execution", "IV")]
+        out = self._evaluate(mutate)
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                self.assertIn({"base": "execution", "qualifiers": ["PROV", "IV"]},
+                              result["supported_claims"])
+                self.assertTrue(result["asserted_claim_supported"])
+                self.assertEqual(result["verdict"], "accept")
+        self.assertEqual(json.dumps(out["independent"], sort_keys=True),
+                         json.dumps(out["reference"], sort_keys=True))
+
+    def test_d2a_unrelated_over_ceiling_finding_does_not_diagnose(self) -> None:
+        """Section 8.6 scopes the boundary-exceeded row to a present asserted-base
+        aggregate deeper than the ceiling."""
+        def mutate(p):
+            p["asserted_claim"] = {"base": "intent", "qualifiers": []}
+            p["boundary_finding"]["ceiling_base"] = "intent"
+            p["base_findings"] = [self._finding("intent"), self._finding("execution")]
+        out = self._evaluate(mutate)
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                self.assertEqual(result["substantive_reasons"], [])
+                self.assertEqual(result["verdict"], "accept")
+
+    def test_d2a_asserted_base_over_ceiling_still_diagnoses(self) -> None:
+        """The complement: when the asserted base itself is deeper than the
+        ceiling, the row must still fire."""
+        def mutate(p):
+            p["asserted_claim"] = {"base": "execution", "qualifiers": []}
+            p["boundary_finding"]["ceiling_base"] = "intent"
+            p["base_findings"] = [self._finding("intent"), self._finding("execution")]
+        out = self._evaluate(mutate)
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                self.assertIn("E_BASE_EXCEEDS_BOUNDARY", result["substantive_reasons"])
+                self.assertNotEqual(result["verdict"], "accept")
+
+    def test_d2b_accept_survives_a_non_empty_diagnostic_set(self) -> None:
+        """Section 8.4 / Verdict: accept is exact support plus counter-evidence
+        not blocking. A non-empty substantive set is not a third condition."""
+        def mutate(p):
+            p["asserted_claim"] = {"base": "intent", "qualifiers": []}
+            p["boundary_finding"]["ceiling_base"] = "intent"
+            p["base_findings"] = [self._finding("intent"), self._finding("execution")]
+        out = self._evaluate(mutate)
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                self.assertTrue(result["asserted_claim_supported"])
+                self.assertEqual(result["verdict"], "accept")
+
+    def test_published_sixteen_are_undisturbed(self) -> None:
+        outcome = qualify(self.CORPUS, Path(tempfile.mkdtemp()), environment_label="portable")
+        self.assertEqual(outcome.status, QUALIFIED)
+        summary = outcome.bundle["comparison"]["summary"]
+        self.assertEqual(summary["vectors"], 16)
+        self.assertEqual(summary["agree"], 16)
+        self.assertEqual(summary["expected_mismatch"], 0)
