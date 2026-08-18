@@ -26,6 +26,39 @@ SEED = PKG / "seeds" / "synthetic-a.json"
 CANDIDATE = FIXTURES / "WEXP-SYNTH-CANDIDATE-A"
 
 
+# Section 8.6 is exhaustive for Core-derived non-fatal diagnostics, and states
+# that no condition outside the matrix creates one. A token that names a matrix
+# row therefore has to arrive from that row, and cannot be planted on a finding
+# to exercise the Section 8.4 finding-reason path.
+_SECTION_8_6_MATRIX_TOKENS = frozenset({
+    "E_BOUNDARY_NOT_SUPPORTED", "E_BOUNDARY_NOT_EVALUATED", "E_EVIDENCE_NOT_BOUND",
+    "E_BASE_EXCEEDS_BOUNDARY", "E_MISSING_REQUIRED_EVIDENCE", "E_BASE_NOT_EVALUATED",
+    "E_EXACT_CLAIM_NOT_SUPPORTED", "E_PROV_NOT_EVALUATED", "E_PROV_NOT_SUPPORTED",
+    "E_IV_NOT_EVALUATED", "E_IV_NOT_SUPPORTED", "E_INDEPENDENCE_NOT_ESTABLISHED",
+    "E_COUNTER_EVIDENCE_NOT_EVALUATED", "E_COUNTER_EVIDENCE_UNRESOLVED",
+    "E_COUNTER_EVIDENCE_DEFEATING",
+})
+
+# Tokens whose published meaning binds them to a specific carrier and so cannot be
+# attached to an arbitrary finding. `P_COUNTER_FAIL` has no role mapping and no
+# definition in the public material; its meaning is fixed by its name and by its
+# single published use, inside fixture C15's counter-evidence entry. Putting it on
+# a base finding would assert a counter-evidence failure about a base aggregate.
+_CARRIER_BOUND_TOKENS = frozenset({"P_COUNTER_FAIL"})
+
+
+def finding_reason_tokens(profile: dict) -> list[str]:
+    """Registered substantive tokens that could legitimately ride the Section 8.4
+    finding-reason path under a given profile.
+
+    Derived from the profile rather than listed, so that registering a suitable
+    token is all it takes for the regression below to start running for real.
+    """
+
+    registered = set(profile["token_registry"]["classes"]["substantive"])
+    return sorted(registered - _SECTION_8_6_MATRIX_TOKENS - _CARRIER_BOUND_TOKENS)
+
+
 class TestIndependenceFirewall(unittest.TestCase):
     def test_no_engine_imports_another_engine_or_a_non_shared_module(self) -> None:
         self.assertEqual(check_independence(), [])
@@ -1187,16 +1220,75 @@ class TestEXT10VerdictLevelCorrections(unittest.TestCase):
 
     def test_d2b_accept_survives_a_non_empty_diagnostic_set(self) -> None:
         """Section 8.4 / Verdict: accept is exact support plus counter-evidence
-        not blocking. A non-empty substantive set is not a third condition."""
+        not blocking. A non-empty substantive set is not a third condition.
+
+        This test asserts its own precondition. It previously did not, and the
+        D2a correction quietly removed the diagnostic it had relied on, leaving it
+        passing while proving a weaker property than its name claims.
+        """
+        tokens = finding_reason_tokens(self.candidate.profile)
+        if not tokens:
+            raise unittest.SkipTest(
+                "no registered substantive token can validly carry the Section 8.4 "
+                "finding-reason path under this profile, so accept with a non-empty "
+                "substantive set is not reachable by any valid input; recorded as a "
+                "known absence in CONFORMANCE.md"
+            )
+        token = tokens[0]
+
         def mutate(p):
             p["asserted_claim"] = {"base": "intent", "qualifiers": []}
             p["boundary_finding"]["ceiling_base"] = "intent"
-            p["base_findings"] = [self._finding("intent"), self._finding("execution")]
+            finding = self._finding("intent")
+            finding["reasons"] = [token]
+            p["base_findings"] = [finding]
+            p["qualifier_findings"] = []
+
         out = self._evaluate(mutate)
         for name, result in out.items():
             with self.subTest(engine=name):
+                # The precondition, checked before the property it guards.
+                self.assertEqual(result["substantive_reasons"], [token])
                 self.assertTrue(result["asserted_claim_supported"])
                 self.assertEqual(result["verdict"], "accept")
+
+    def test_d2b_the_three_reachable_corners_pin_the_verdict_rule(self) -> None:
+        """With the fourth corner unreachable, the other three still exclude both
+        ways of getting the rule wrong.
+
+        supported + no block + empty        -> accept    (rules out requiring a diagnostic)
+        not supported + empty               -> downgrade (rules out deriving the verdict
+                                                          from an empty substantive set)
+        supported + blocking counter        -> downgrade (rules out ignoring counter-evidence)
+        """
+        def supported_clean(p):
+            p["asserted_claim"] = {"base": "intent", "qualifiers": []}
+            p["boundary_finding"]["ceiling_base"] = "intent"
+            p["base_findings"] = [self._finding("intent")]
+            p["qualifier_findings"] = []
+
+        def unsupported_clean(p):
+            supported_clean(p)
+            p["asserted_claim"] = {"base": "execution", "qualifiers": []}
+
+        def supported_blocked(p):
+            supported_clean(p)
+            p["counter_evidence"] = [{
+                "affected_claims": "all-admissible-claims", "basis_refs": ["ce"],
+                "limitations": [], "reasons": [], "status": "unresolved-material",
+            }]
+
+        first = self._evaluate(supported_clean)["reference"]
+        self.assertEqual(first["substantive_reasons"], [])
+        self.assertEqual(first["verdict"], "accept")
+
+        second = self._evaluate(unsupported_clean)["reference"]
+        self.assertFalse(second["asserted_claim_supported"])
+        self.assertEqual(second["verdict"], "downgrade")
+
+        third = self._evaluate(supported_blocked)["reference"]
+        self.assertTrue(third["asserted_claim_supported"])
+        self.assertEqual(third["verdict"], "downgrade")
 
     def test_published_sixteen_are_undisturbed(self) -> None:
         outcome = qualify(self.CORPUS, Path(tempfile.mkdtemp()), environment_label="portable")

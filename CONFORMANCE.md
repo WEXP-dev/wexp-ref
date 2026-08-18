@@ -18,7 +18,8 @@ sixteen transcribed expectations were met.
   carry-through
 - §8.2 counter-evidence blocking, scoped to entries whose affected claims include
   the asserted claim or all-admissible-claims
-- §8.4 the accept / downgrade / reject verdict conditions as published
+- §8.4 the accept / downgrade / reject verdict conditions as published, but
+  not its finding-reason projection step — see the known absences below
 - §8.6 the rows listed under *Diagnostics implemented* below
 
 ## Diagnostics implemented
@@ -59,6 +60,7 @@ surface would have to implement them.
 | Ten further §8.6 diagnostic rows unimplemented | KNOWN ABSENCE — outside the seven roles the current profile registers |
 | An unaccepted boundary returned as an engine rejection rather than through the §8.6 boundary rows | KNOWN ABSENCE — the §8.6 boundary rows are not implemented, so the condition is surfaced as a rejection rather than silently dropped |
 | §6.2 ingress position 5 (supplied fatal conditions) beyond the profile's registered tokens | INTENTIONALLY OUT OF CURRENT PROFILE |
+| §8.4 projection of registered substantive reasons carried by an asserted-role finding or an exact premise of a support entry | KNOWN ABSENCE — unimplemented on all four routes. Unreachable under this profile, which registers no token that can validly carry it, so no valid input currently observes the omission. Recorded anyway; see below |
 
 None of the above is classified as REQUIRED FOR CLAIMED SURFACE or as an ACTUAL
 DEFECT, because this document does not claim the wider surface. Widening the
@@ -80,6 +82,42 @@ from the specification text rather than from either implementation:
 The published sixteen vectors are unaffected by all three corrections: none of
 them carries two qualifiers on one base, an unrelated over-ceiling finding, or an
 accept with a non-empty diagnostic set. Their evidence bundle digest is unchanged.
+
+## The finding-reason projection, and why it is listed
+
+§8.4 projects a finding's registered substantive reasons into the result:
+
+> for every boundary, base, or qualifier finding that is the asserted role or an
+> exact premise of a SupportEntry: add its registered substantive reasons to
+> reasons
+
+§8.6 bounds where those reasons may come from, and names
+`E_EVIDENCE_COVERAGE_MISMATCH`, `E_CHAIN_UNBOUND` and
+`E_COMPOSITION_WARRANT_MISSING` as tokens that travel this path. Neither engine
+implements it, on any of the four routes.
+
+No valid input under this profile can observe that. Of the four substantive tokens
+it registers, three name §8.6 matrix rows — and §8.6 says the matrix is exhaustive
+and that no condition outside it creates a Core-derived non-fatal token, so a
+matrix token has to arrive from its own row rather than from a finding's reason
+set. The fourth, `P_COUNTER_FAIL`, has no role mapping and no published
+definition; its meaning comes from its name and from its single appearance inside
+fixture C15's counter-evidence entry, so attaching it to a base finding would
+assert a counter-evidence failure about a base aggregate.
+
+The absence is listed because unreachable is not the same as absent. A profile
+registering one suitable token would reach it immediately, and an implementation
+claiming a wider surface would have to implement it.
+
+This also bounds what can be demonstrated about the accept condition. Within this
+profile, `accept` with a non-empty substantive set is unreachable by any valid
+input: every registered §8.6 substantive row implies either that the asserted
+claim is not exactly supported or that counter-evidence blocks it, counter-entry
+reasons project only from blocking entries, and the finding-reason path has no
+usable token. The regression for that property asserts its own precondition and
+skips, naming this gap, rather than passing against a weaker one — which is what
+it had silently been doing after the D2a correction removed the diagnostic it
+relied on. The three reachable corners of the verdict rule are tested directly.
 
 ## Corrected diagnostic-projection deviation
 
