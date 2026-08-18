@@ -1205,3 +1205,200 @@ class TestEXT10VerdictLevelCorrections(unittest.TestCase):
         self.assertEqual(summary["vectors"], 16)
         self.assertEqual(summary["agree"], 16)
         self.assertEqual(summary["expected_mismatch"], 0)
+
+
+class TestD5Section86DiagnosticRows(unittest.TestCase):
+    """Section 8.6 is a matrix of independent rows, not one fallback.
+
+    "An absent aggregate triggers only its absence row; status rows require that
+    aggregate to be present." Both engines previously reached
+    E_MISSING_REQUIRED_EVIDENCE through a catch-all covering any unsupported
+    asserted claim that was not over-ceiling, so a present aggregate carrying a
+    non-passing status was reported as missing evidence. Every expectation below
+    is read off the published matrix, not off either engine.
+    """
+
+    CORPUS = Path(os.environ.get("WEXP_CORE01_CORPUS", "")) if os.environ.get("WEXP_CORE01_CORPUS") else None
+
+    def setUp(self) -> None:
+        if self.CORPUS is None or not self.CORPUS.is_dir():
+            raise unittest.SkipTest("set WEXP_CORE01_CORPUS to the pinned wexp-vectors Core-01 set")
+        self.candidate = load(self.CORPUS)
+        self.base_input = self.candidate.vectors[0].payload["input"]
+
+    def _evaluate(self, mutate):
+        import copy
+        from wexp_ref.core01.harness.candidate import Vector
+        payload = copy.deepcopy(self.base_input)
+        mutate(payload)
+        vector = Vector(vector_id="regression", path=Path("regression"), sha256="",
+                        payload={"input": payload})
+        results = {name: load_engine(name).evaluate(vector, self.candidate)
+                   for name in ("independent", "reference")}
+        # Two engines producing different answers is itself a failure, and saying
+        # so here keeps every assertion below from having to repeat the check.
+        self.assertEqual(json.dumps(results["independent"], sort_keys=True),
+                         json.dumps(results["reference"], sort_keys=True),
+                         "the two engines disagree")
+        return results
+
+    @staticmethod
+    def _finding(base):
+        return {"base": base, "basis_refs": [base], "evaluation_context_ref": "C",
+                "limitations": [], "reasons": [], "semantic_validation": "supported",
+                "target": "T", "target_binding": "supported"}
+
+    @staticmethod
+    def _qualifier(base, qualifier, **overrides):
+        finding = {"qualifier": qualifier, "qualified_base": base,
+                   "basis_refs": [f"{qualifier.lower()}-{base}"], "evaluation_context_ref": "C",
+                   "independence_validation": ("not-applicable" if qualifier == "PROV" else "supported"),
+                   "limitations": [], "reasons": [], "semantic_validation": "supported",
+                   "target": "T", "target_binding": "supported"}
+        finding.update(overrides)
+        return finding
+
+    def _iv_case(self, **overrides):
+        def mutate(p):
+            p["asserted_claim"] = {"base": "invocation", "qualifiers": ["IV"]}
+            p["boundary_finding"]["ceiling_base"] = "invocation"
+            p["base_findings"] = [self._finding("invocation")]
+            p["qualifier_findings"] = [self._qualifier("invocation", "IV", **overrides)]
+        return mutate
+
+    # A. The exact case the frozen successor expectation describes.
+    def test_a_present_iv_aggregate_with_an_unevaluated_assessment(self) -> None:
+        out = self._evaluate(self._iv_case(independence_validation="not-evaluated",
+                                           limitations=["L-iv-scope"]))
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                # The aggregate is present, so the absence row cannot fire.
+                self.assertEqual(result["substantive_reasons"], [])
+                self.assertEqual(result["evaluation_gaps"], ["E_IV_NOT_EVALUATED"])
+                self.assertEqual(len(result["evaluation_gap_entries"]), 1)
+                entry = result["evaluation_gap_entries"][0]
+                # "source: IV finding" -- the entry carries that finding's basis.
+                self.assertEqual(entry["basis_refs"], ["iv-invocation"])
+                self.assertEqual(entry["affected_claims"],
+                                 [{"base": "invocation", "qualifiers": ["IV"]}])
+                # Section 8.1: a finding that determines a gap for the asserted
+                # claim contributes its limitations to the inherited union.
+                self.assertIn("L-iv-scope", result["inherited_limitations"])
+                # Section 8.2: accept needs exact support, which IV does not have.
+                self.assertFalse(result["asserted_claim_supported"])
+                self.assertEqual(result["verdict"], "downgrade")
+
+    def test_a_each_of_the_three_assessments_triggers_the_row(self) -> None:
+        """The row reads "target-binding, semantic, or independence assessment
+        not-evaluated", so each one alone is sufficient."""
+        for field in ("target_binding", "semantic_validation", "independence_validation"):
+            with self.subTest(assessment=field):
+                out = self._evaluate(self._iv_case(**{field: "not-evaluated"}))
+                for name, result in out.items():
+                    self.assertEqual(result["evaluation_gaps"], ["E_IV_NOT_EVALUATED"], name)
+                    self.assertEqual(result["substantive_reasons"], [], name)
+
+    # B. Absence rows keep their token.
+    def test_b_absent_iv_aggregate_still_reports_missing_required_evidence(self) -> None:
+        def mutate(p):
+            p["asserted_claim"] = {"base": "invocation", "qualifiers": ["IV"]}
+            p["boundary_finding"]["ceiling_base"] = "invocation"
+            p["base_findings"] = [self._finding("invocation")]
+            p["qualifier_findings"] = []
+        out = self._evaluate(mutate)
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                self.assertEqual(result["substantive_reasons"], ["E_MISSING_REQUIRED_EVIDENCE"])
+                self.assertEqual(result["evaluation_gaps"], [])
+
+    def test_b_absent_asserted_base_aggregate_reports_missing_required_evidence(self) -> None:
+        def mutate(p):
+            p["asserted_claim"] = {"base": "intent", "qualifiers": []}
+            p["boundary_finding"]["ceiling_base"] = "execution"
+            p["base_findings"] = [self._finding("execution")]
+            p["qualifier_findings"] = []
+        out = self._evaluate(mutate)
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                self.assertEqual(result["substantive_reasons"], ["E_MISSING_REQUIRED_EVIDENCE"])
+
+    def test_b_absent_prov_aggregate_reports_missing_required_evidence(self) -> None:
+        def mutate(p):
+            p["asserted_claim"] = {"base": "execution", "qualifiers": ["PROV"]}
+            p["boundary_finding"]["ceiling_base"] = "execution"
+            p["base_findings"] = [self._finding("execution")]
+            p["qualifier_findings"] = []
+        out = self._evaluate(mutate)
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                self.assertEqual(result["substantive_reasons"], ["E_MISSING_REQUIRED_EVIDENCE"])
+                self.assertEqual(result["evaluation_gaps"], [])
+
+    # C. A passing aggregate produces no not-evaluated diagnostic at all.
+    def test_c_a_supported_iv_aggregate_produces_no_diagnostic(self) -> None:
+        out = self._evaluate(self._iv_case())
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                self.assertEqual(result["substantive_reasons"], [])
+                self.assertEqual(result["evaluation_gaps"], [])
+                self.assertTrue(result["asserted_claim_supported"])
+                self.assertEqual(result["verdict"], "accept")
+
+    # E. Neighbouring rows, each behaving exactly as the matrix and the profile
+    # registry jointly require.
+    def test_e_unsupported_independence_stays_a_declared_absence(self) -> None:
+        """E_INDEPENDENCE_NOT_ESTABLISHED has no role in this profile, so that row
+        remains a known absence and the claim collapses onto the fallback. It must
+        not borrow the not-evaluated row's token, which describes a different
+        row."""
+        out = self._evaluate(self._iv_case(independence_validation="unsupported"))
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                self.assertEqual(result["substantive_reasons"], ["E_MISSING_REQUIRED_EVIDENCE"])
+                self.assertEqual(result["evaluation_gaps"], [])
+
+    def test_e_an_unevaluated_prov_assessment_never_borrows_the_iv_token(self) -> None:
+        """Section 8.6 gives PROV its own row and its own token. This profile does
+        not register E_PROV_NOT_EVALUATED, so the row is a declared absence --
+        which is not a licence to report the IV row instead."""
+        def mutate(p):
+            p["asserted_claim"] = {"base": "execution", "qualifiers": ["PROV"]}
+            p["boundary_finding"]["ceiling_base"] = "execution"
+            p["base_findings"] = [self._finding("execution")]
+            p["qualifier_findings"] = [self._qualifier("execution", "PROV",
+                                                       target_binding="not-evaluated")]
+        out = self._evaluate(mutate)
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                self.assertNotIn("E_IV_NOT_EVALUATED", result["evaluation_gaps"])
+                self.assertEqual(result["substantive_reasons"], ["E_MISSING_REQUIRED_EVIDENCE"])
+
+    def test_e_over_ceiling_row_still_excludes_the_absence_token(self) -> None:
+        def mutate(p):
+            p["asserted_claim"] = {"base": "execution", "qualifiers": []}
+            p["boundary_finding"]["ceiling_base"] = "intent"
+            p["base_findings"] = [self._finding("intent"), self._finding("execution")]
+            p["qualifier_findings"] = []
+        out = self._evaluate(mutate)
+        for name, result in out.items():
+            with self.subTest(engine=name):
+                self.assertEqual(result["substantive_reasons"], ["E_BASE_EXCEEDS_BOUNDARY"])
+
+    def test_e_a_present_aggregate_never_produces_the_absence_token(self) -> None:
+        """The invariant the catch-all violated, stated directly."""
+        for overrides in ({"independence_validation": "not-evaluated"},
+                          {"semantic_validation": "not-evaluated"},
+                          {"target_binding": "not-evaluated"}):
+            with self.subTest(**overrides):
+                out = self._evaluate(self._iv_case(**overrides))
+                for result in out.values():
+                    self.assertNotIn("E_MISSING_REQUIRED_EVIDENCE", result["substantive_reasons"])
+
+    # F. The published corpus is untouched by all of the above.
+    def test_f_published_sixteen_are_undisturbed(self) -> None:
+        outcome = qualify(self.CORPUS, Path(tempfile.mkdtemp()), environment_label="portable")
+        self.assertEqual(outcome.status, QUALIFIED)
+        summary = outcome.bundle["comparison"]["summary"]
+        self.assertEqual(summary["vectors"], 16)
+        self.assertEqual(summary["agree"], 16)
+        self.assertEqual(summary["expected_mismatch"], 0)

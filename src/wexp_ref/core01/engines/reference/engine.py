@@ -32,6 +32,14 @@ class OutsideSlice(Exception):
     """Raised when an input is not admissible for this candidate."""
 
 
+# Section 8.6 gives PROV and IV separate not-evaluated rows carrying distinct
+# tokens. A profile registers whichever of them it implements, so the row is
+# applied to the qualifier whose token the profile actually registered rather
+# than to every qualifier: emitting the IV token for a PROV finding would report
+# a row that did not fire.
+_NOT_EVALUATED_ROW = {"PROV": "E_PROV_NOT_EVALUATED", "IV": "E_IV_NOT_EVALUATED"}
+
+
 def _domain(profile: dict[str, Any], name: str) -> tuple[str, ...]:
     return tuple(profile["status_domains"].get(name) or ())
 
@@ -91,6 +99,8 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
         seen: list[tuple[int, int]] = []
         substantive: list[str] = []
         over_ceiling_ranks: set[int] = set()
+        present_bases: set[str] = set()
+        present_qualifiers: dict[tuple[str, str], dict[str, Any]] = {}
 
         def remember(claim: dict[str, Any], basis: list[str], limits: list[str]) -> None:
             identity = algebra.encode(profile, claim)[:2]
@@ -101,6 +111,9 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
         for finding in value.get("base_findings") or []:
             base = finding.get("base")
             _check(base in bases, "base finding uses an unknown base")
+            # Presence is not admission: Section 8.6 distinguishes an absent
+            # aggregate from a present one whose status did not pass.
+            present_bases.add(base)
             if not _finding_admitted(profile, finding):
                 continue
             if bases.index(base) > ceiling_rank:
@@ -131,6 +144,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             admitted = _finding_admitted(profile, finding) and _independence_satisfied(
                 profile, qualifier, finding.get("independence_validation")
             )
+            present_qualifiers[(base, qualifier)] = finding
             parent = find_record(base, [])
             if not admitted or parent is None:
                 continue
@@ -177,10 +191,44 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             )
         asserted_identity = algebra.encode(profile, asserted)[:2]
         asserted_supported = asserted_identity in seen
+        # Section 8.6, evaluated row by row for the rows this profile registers.
+        # An absent aggregate triggers only its absence row, and a status row
+        # requires that aggregate to be present, so a present aggregate can never
+        # produce missing-required-evidence.
+        missing = token_for(profile, "missing_required_evidence")
+        row_fired = False
         if bases.index(asserted["base"]) in over_ceiling_ranks:
             substantive.append(token_for(profile, "base_exceeds_boundary"))
-        if not asserted_supported and token_for(profile, "base_exceeds_boundary") not in substantive:
-            substantive.append(token_for(profile, "missing_required_evidence"))
+            row_fired = True
+        if asserted["base"] not in present_bases:
+            substantive.append(missing)
+            row_fired = True
+        for qualifier in asserted["qualifiers"]:
+            if (asserted["base"], qualifier) not in present_qualifiers:
+                substantive.append(missing)
+                row_fired = True
+        not_evaluated_row = token_for(profile, "qualifier_not_evaluated")
+        qualifier_gaps: list[tuple[str, dict[str, Any]]] = []
+        for qualifier in asserted["qualifiers"]:
+            if _NOT_EVALUATED_ROW.get(qualifier) != not_evaluated_row:
+                continue
+            finding = present_qualifiers.get((asserted["base"], qualifier))
+            if finding is None:
+                continue
+            if "not-evaluated" in (
+                finding.get("target_binding"),
+                finding.get("semantic_validation"),
+                finding.get("independence_validation"),
+            ):
+                qualifier_gaps.append((not_evaluated_row, finding))
+                row_fired = True
+        # The ten Section 8.6 rows this profile does not register are a declared
+        # absence, so a claim unsupported for one of their reasons still collapses
+        # onto missing-required-evidence. That collapse is the fallback for rows
+        # that cannot be named, not a rule: it applies only where no registered
+        # row already said something exact.
+        if not asserted_supported and not row_fired:
+            substantive.append(missing)
 
         relevant = [asserted, *supported_claims]
         counter_domain = _domain(profile, "counter-evidence")
@@ -225,6 +273,22 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
                         "limitations": list(counter.get("limitations", [])),
                     }
                 )
+
+        for token, finding in qualifier_gaps:
+            gap_tokens.append(token)
+            gap_entries.append(
+                {
+                    "token": token,
+                    "target": value.get("target"),
+                    "evaluation_context_ref": (value.get("evaluation_context") or {}).get("id"),
+                    "affected_claims": [copy.deepcopy(asserted)],
+                    "basis_refs": list(finding.get("basis_refs", [])),
+                    "limitations": list(finding.get("limitations", [])),
+                }
+            )
+            # Section 8.1: limitations on a finding that determines a gap for the
+            # asserted claim join the inherited union.
+            inherited.extend(finding.get("limitations", []))
 
         registered = tuple(profile["token_registry"]["classes"]["gap"])
         for gap in value.get("profile_evaluation_gaps") or []:
