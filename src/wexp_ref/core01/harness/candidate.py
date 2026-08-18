@@ -136,6 +136,45 @@ def _resolve_inside(root: Path, relative: str, *, what: str) -> Path:
     return candidate
 
 
+def _verify_bundled_specification(root: Path, descriptor: dict[str, Any]) -> canonical.Artifact | None:
+    """Prove the bundled specification bytes are the ones the descriptor declares.
+
+    The descriptor names a specification and its digest. Trusting that field
+    without reading the file leaves the whole binding unproven: a candidate could
+    declare the published Core identity while shipping different bytes, and every
+    downstream result would inherit an authority it never had. The digest is
+    computed from a single read of the file, so identity and content cannot come
+    from two different reads.
+    """
+
+    authority = descriptor["authority"]
+    if not authority.get("published_specification"):
+        # A candidate that claims no published specification carries no
+        # publication authority to prove, and its authority fields are
+        # placeholders. Enforcing a bundled-artifact match there would reject
+        # synthetic fixtures for failing to ship a specification they never
+        # claimed. Anything asserting a published specification is bound.
+        return None
+    relative = authority["snapshot_path"]
+    path = _resolve_inside(root, relative, what="authority.snapshot_path")
+    if not path.is_file():
+        raise CandidateError(f"authority.snapshot_path: missing specification {relative!r}")
+
+    artifact = canonical.read_artifact(path)
+    if artifact.sha256 != authority["xml_sha256"]:
+        raise CandidateError(
+            f"bundled specification does not match the declared authority: "
+            f"{relative!r} declared {authority['xml_sha256']}, observed {artifact.sha256}"
+        )
+    declared_bytes = authority.get("xml_bytes")
+    if declared_bytes is not None and artifact.size != declared_bytes:
+        raise CandidateError(
+            f"bundled specification size mismatch for {relative!r}: "
+            f"declared {declared_bytes}, observed {artifact.size}"
+        )
+    return artifact
+
+
 def _verify_bound_files(root: Path, descriptor: dict[str, Any]) -> dict[Path, canonical.Artifact]:
     """Verify every bound file and return the buffers that were verified.
 
@@ -244,6 +283,10 @@ def load(root: Path) -> Candidate:
     _validate(profile, "profile", "profile.json")
     if profile["profile_version"] not in SUPPORTED_PROFILE_VERSIONS:
         raise CandidateError(f"unsupported profile_version: {profile['profile_version']}")
+
+    # Before any semantic evaluation: the candidate must actually carry the
+    # specification it claims authority from.
+    _verify_bundled_specification(root, descriptor)
 
     bound = _verify_bound_files(root, descriptor)
 
