@@ -225,6 +225,7 @@ jobs:
               throw "one-byte-mutated candidate unexpectedly passed"
           }
           Write-Output "PASS: one-byte mutation failed closed"
+          exit 0
 
       - name: Qualify both sets (container)
         if: matrix.environment == 'docker'
