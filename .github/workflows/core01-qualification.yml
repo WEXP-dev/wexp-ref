@@ -1,22 +1,13 @@
 name: Core-01 qualification
 
-# Runs the two independent engines and the comparator over the WEXP Core-01
-# vector corpus. The corpus is not vendored here: it is fetched from the exact
-# wexp-vectors commit pinned in config/wexp-vectors-core01.lock.json, and the
-# fetched manifest digest must match the lock before anything executes.
+# Runs both independent engines and the comparator over both public Core-01
+# vector sets. The corpus is fetched from the exact wexp-vectors commit pinned
+# in config/wexp-vectors-core01.lock.json; every set manifest must match that
+# lock before any engine executes.
 #
-# Expected outcomes come from that corpus, which transcribes them from the
-# published Internet-Draft. Engine output is never the source of an expectation.
-#
-# Scheduling is owned by src/wexp_ref/core01/tools/matrix_policy.py so it stays
-# unit-testable rather than buried in a workflow expression:
-#
-#   push                portable only, developer feedback
-#   pull_request        full matrix + portability comparison
-#   workflow_dispatch   full matrix + portability comparison
-#
-# A portable-only push result is not sufficient evidence of qualification
-# readiness. That requires a complete full-matrix observation at one exact head.
+# A portable-only push result is developer feedback, not qualification
+# readiness. Pull requests and manual runs require Linux amd64, macOS arm64,
+# and real Windows x64 observations plus the cross-environment comparison.
 
 on:
   workflow_dispatch:
@@ -24,16 +15,30 @@ on:
     paths:
       - 'src/wexp_ref/core01/**'
       - 'config/wexp-vectors-core01.lock.json'
-      - 'tests/test_core01_qualification.py'
+      - 'scripts/verify_core01_corpus.py'
+      - 'scripts/windows_tamper_demo.ps1'
+      - 'tests/test_core01_*.py'
+      - '.gitattributes'
+      - 'README.md'
+      - 'docs/persona-b-windows-retest.md'
       - '.github/workflows/core01-qualification.yml'
   push:
     branches:
       - main
     paths:
       - 'src/wexp_ref/core01/**'
+      - 'config/wexp-vectors-core01.lock.json'
+      - 'scripts/verify_core01_corpus.py'
+      - 'scripts/windows_tamper_demo.ps1'
+      - 'tests/test_core01_*.py'
+      - '.gitattributes'
+      - '.github/workflows/core01-qualification.yml'
 
 permissions:
   contents: read
+
+env:
+  CORE01_SETS: WEXP-CORE-01-VECTORS-001 WEXP-CORE-01-VECTORS-002
 
 jobs:
   plan:
@@ -62,10 +67,10 @@ jobs:
           } >>"$GITHUB_OUTPUT"
 
   qualify:
-    name: qualify (${{ matrix.environment }})
+    name: qualify both sets (${{ matrix.environment }})
     needs: plan
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -82,57 +87,155 @@ jobs:
           python-version: '3.12'
 
       - name: Fetch the pinned vector corpus
+        if: matrix.environment != 'windows'
+        shell: bash
         run: |
           set -euo pipefail
           commit="$(python3 -c 'import json;print(json.load(open("config/wexp-vectors-core01.lock.json"))["commit"])')"
-          git init -q build/wexp-vectors
-          git -C build/wexp-vectors remote add origin https://github.com/WEXP-dev/wexp-vectors.git
-          git -C build/wexp-vectors fetch -q --depth 1 origin "$commit"
-          git -C build/wexp-vectors checkout -q FETCH_HEAD
+          git clone --quiet https://github.com/WEXP-dev/wexp-vectors.git build/wexp-vectors
+          git -C build/wexp-vectors checkout --quiet --detach "$commit"
           observed="$(git -C build/wexp-vectors rev-parse HEAD)"
           [ "$observed" = "$commit" ] || { echo "corpus commit mismatch: $observed"; exit 1; }
 
-      - name: Verify the corpus against the lock
+      - name: Fetch the pinned vector corpus with ordinary Windows checkout
+        if: matrix.environment == 'windows'
+        shell: powershell
         run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import hashlib, json, pathlib, sys
-          lock = json.loads(pathlib.Path("config/wexp-vectors-core01.lock.json").read_bytes())
-          manifest = pathlib.Path("build/wexp-vectors") / lock["manifest_path"]
-          observed = hashlib.sha256(manifest.read_bytes()).hexdigest()
-          if observed != lock["manifest_sha256"]:
-              sys.exit(f"manifest digest mismatch: {observed} != {lock['manifest_sha256']}")
-          print(f"corpus manifest verified: {observed}")
-          PY
+          $ErrorActionPreference = "Stop"
+          if ($PSVersionTable.PSVersion.Major -ne 5) {
+              throw "Windows PowerShell 5.1 is required; observed $($PSVersionTable.PSVersion)"
+          }
+          Write-Output "Windows PowerShell $($PSVersionTable.PSVersion)"
+          git config --global core.autocrlf true
+          if ($LASTEXITCODE -ne 0) { throw "could not set core.autocrlf=true" }
+          $Lock = Get-Content -LiteralPath "config\wexp-vectors-core01.lock.json" -Raw |
+              ConvertFrom-Json
+          git clone https://github.com/WEXP-dev/wexp-vectors.git build\wexp-vectors
+          if ($LASTEXITCODE -ne 0) { throw "wexp-vectors clone failed" }
+          git -C build\wexp-vectors checkout --quiet --detach $Lock.commit
+          if ($LASTEXITCODE -ne 0) { throw "locked wexp-vectors checkout failed" }
+          $Observed = git -C build\wexp-vectors rev-parse HEAD
+          if ($LASTEXITCODE -ne 0 -or $Observed -ne $Lock.commit) {
+              throw "corpus commit mismatch: $Observed"
+          }
+          $AutoCrlf = git -C build\wexp-vectors config --get core.autocrlf
+          if ($LASTEXITCODE -ne 0 -or $AutoCrlf -ne "true") {
+              throw "Windows checkout did not use core.autocrlf=true"
+          }
+
+      - name: Verify exact checkout and both manifest identities
+        run: >-
+          python scripts/verify_core01_corpus.py
+          --lock config/wexp-vectors-core01.lock.json
+          --repository build/wexp-vectors
 
       - name: Unit tests and independence firewall
         if: matrix.environment != 'docker'
         env:
           WEXP_CORE01_CORPUS: build/wexp-vectors/vectors/WEXP-CORE-01-VECTORS-001
           PYTHONPATH: src
-        run: python3 -m unittest discover -s tests -t . -p 'test_core01_*.py' -v
+        run: python -m unittest discover -s tests -t . -p 'test_core01_*.py' -v
 
-      - name: Qualify (host)
-        if: matrix.environment != 'docker'
+      - name: Qualify both sets (Linux or macOS host)
+        if: matrix.environment != 'docker' && matrix.environment != 'windows'
+        shell: bash
         env:
           PYTHONPATH: src
         run: |
           set -euo pipefail
-          python3 -m wexp_ref.core01.harness.orchestrate \
-            --candidate "build/wexp-vectors/vectors/WEXP-CORE-01-VECTORS-001" \
-            --output "build/qualification/${{ matrix.environment }}" \
-            --environment "${{ matrix.environment }}"
+          for candidate_id in $CORE01_SETS; do
+            python3 -m wexp_ref.core01.harness.orchestrate \
+              --candidate "build/wexp-vectors/vectors/${candidate_id}" \
+              --output "build/qualification/${{ matrix.environment }}" \
+              --environment "${{ matrix.environment }}"
+          done
 
-      - name: Qualify (container)
+      - name: Qualify both sets (Windows PowerShell 5.1)
+        if: matrix.environment == 'windows'
+        shell: powershell
+        env:
+          PYTHONPATH: src
+        run: |
+          $ErrorActionPreference = "Stop"
+          $Sets = $env:CORE01_SETS -split '\s+'
+          foreach ($Set in $Sets) {
+              $Candidate = Join-Path -Path (Get-Location).Path -ChildPath (
+                  "build\wexp-vectors\vectors\" + $Set
+              )
+              python -m wexp_ref.core01.harness.orchestrate `
+                  --candidate $Candidate `
+                  --output build\qualification\windows `
+                  --environment windows
+              if ($LASTEXITCODE -ne 0) { throw "qualification failed for $Set" }
+          }
+
+      - name: Exercise PowerShell tamper recipe and fail-closed result
+        if: matrix.environment == 'windows'
+        shell: powershell
+        env:
+          PYTHONPATH: src
+        run: |
+          $ErrorActionPreference = "Stop"
+          $Root = (Get-Location).Path
+          $Source = Join-Path -Path $Root -ChildPath (
+              "build\wexp-vectors\vectors\WEXP-CORE-01-VECTORS-001"
+          )
+          $TamperRoot = Join-Path -Path $Root -ChildPath "build\windows-tamper"
+          New-Item -ItemType Directory -Path $TamperRoot | Out-Null
+          $Candidate = Join-Path -Path $TamperRoot -ChildPath (
+              "WEXP-CORE-01-VECTORS-001"
+          )
+          Copy-Item -LiteralPath $Source -Destination $Candidate -Recurse
+          $Relative = "vectors\WEXP-CORE-01-Q001-TV-0001.json"
+          $Target = Join-Path -Path $Candidate -ChildPath $Relative
+          $Before = [System.IO.File]::ReadAllBytes($Target)
+
+          powershell.exe -NoProfile -ExecutionPolicy Bypass `
+              -File scripts\windows_tamper_demo.ps1 `
+              -Candidate $Candidate -RelativeFile $Relative -Index 0
+          if ($LASTEXITCODE -ne 0) { throw "valid tamper recipe failed" }
+          $After = [System.IO.File]::ReadAllBytes($Target)
+          if ($Before.Length -ne $After.Length) { throw "tamper changed file length" }
+          $Changed = 0
+          for ($Index = 0; $Index -lt $Before.Length; $Index++) {
+              if ($Before[$Index] -ne $After[$Index]) { $Changed++ }
+          }
+          if ($Changed -ne 1) { throw "tamper changed $Changed bytes instead of one" }
+
+          $BeforeInvalidRequest = (Get-FileHash -LiteralPath $Target -Algorithm SHA256).Hash
+          powershell.exe -NoProfile -ExecutionPolicy Bypass `
+              -File scripts\windows_tamper_demo.ps1 `
+              -Candidate $Candidate -RelativeFile $Relative -Index $After.Length
+          $InvalidExit = $LASTEXITCODE
+          $AfterInvalidRequest = (Get-FileHash -LiteralPath $Target -Algorithm SHA256).Hash
+          if ($InvalidExit -eq 0) { throw "invalid tamper request unexpectedly succeeded" }
+          if ($BeforeInvalidRequest -ne $AfterInvalidRequest) {
+              throw "invalid tamper request changed the target"
+          }
+
+          python -m wexp_ref.core01.harness.orchestrate `
+              --candidate $Candidate `
+              --output build\windows-tamper-result `
+              --environment windows
+          $QualificationExit = $LASTEXITCODE
+          if ($QualificationExit -eq 0) {
+              throw "one-byte-mutated candidate unexpectedly passed"
+          }
+          Write-Output "PASS: one-byte mutation failed closed"
+
+      - name: Qualify both sets (container)
         if: matrix.environment == 'docker'
+        shell: bash
         run: |
           set -euo pipefail
           docker build --platform linux/amd64 -f docker/Dockerfile -t wexp-core01:ci .
-          docker run --rm --platform linux/amd64 \
-            -v "${PWD}/build:/work/build" wexp-core01:ci \
-            --candidate "/work/build/wexp-vectors/vectors/WEXP-CORE-01-VECTORS-001" \
-            --output "/work/build/qualification/docker" \
-            --environment docker
+          for candidate_id in $CORE01_SETS; do
+            docker run --rm --platform linux/amd64 \
+              -v "${PWD}/build:/work/build" wexp-core01:ci \
+              --candidate "/work/build/wexp-vectors/vectors/${candidate_id}" \
+              --output "/work/build/qualification/docker" \
+              --environment docker
+          done
 
       - name: Upload evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -143,7 +246,7 @@ jobs:
           retention-days: 30
 
   portability:
-    name: cross-environment portability
+    name: cross-environment portability for both sets
     needs: [plan, qualify]
     if: needs.plan.outputs.full_matrix == 'true'
     runs-on: ubuntu-latest
@@ -164,23 +267,26 @@ jobs:
         with:
           path: evidence
 
-      - name: Compare environments
+      - name: Compare all four environments for both sets
         env:
           PYTHONPATH: src
-          SET: WEXP-CORE-01-VECTORS-001
         run: |
           set -euo pipefail
-          python3 src/wexp_ref/core01/tools/compare_environments.py \
-            --bundle "portable=evidence/core01-qualification-portable/${SET}/QUALIFICATION.json" \
-            --bundle "docker=evidence/core01-qualification-docker/${SET}/QUALIFICATION.json" \
-            --bundle "darwin=evidence/core01-qualification-darwin/${SET}/QUALIFICATION.json" \
-            --require-full-matrix \
-            --json build/portability.json
+          mkdir -p build/portability
+          for candidate_id in $CORE01_SETS; do
+            python3 src/wexp_ref/core01/tools/compare_environments.py \
+              --bundle "portable=evidence/core01-qualification-portable/${candidate_id}/QUALIFICATION.json" \
+              --bundle "docker=evidence/core01-qualification-docker/${candidate_id}/QUALIFICATION.json" \
+              --bundle "darwin=evidence/core01-qualification-darwin/${candidate_id}/QUALIFICATION.json" \
+              --bundle "windows=evidence/core01-qualification-windows/${candidate_id}/QUALIFICATION.json" \
+              --require-full-matrix \
+              --json "build/portability/${candidate_id}.json"
+          done
 
-      - name: Upload portability report
+      - name: Upload portability reports
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: core01-portability-report
-          path: build/portability.json
+          name: core01-portability-reports
+          path: build/portability/
           if-no-files-found: error
           retention-days: 30

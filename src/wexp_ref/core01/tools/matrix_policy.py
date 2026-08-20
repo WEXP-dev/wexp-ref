@@ -12,8 +12,8 @@ Policy:
 * ``push`` schedules the portable leg only. It is developer feedback and is
   explicitly **not** sufficient evidence for qualification readiness.
 * ``pull_request`` and ``workflow_dispatch`` schedule the full matrix:
-  portable, Docker linux/amd64, native Darwin, and the cross-environment
-  portability comparison.
+  portable, Docker linux/amd64, native Darwin arm64, native Windows x64, and
+  the cross-environment portability comparison.
 
 The distinction this module also carries is between a *qualification result*
 and *qualification execution availability*. A hosted runner refused for billing
@@ -33,6 +33,7 @@ FULL_MATRIX: tuple[dict[str, str], ...] = (
     {"environment": "portable", "runner": "ubuntu-latest"},
     {"environment": "docker", "runner": "ubuntu-latest"},
     {"environment": "darwin", "runner": "macos-15"},
+    {"environment": "windows", "runner": "windows-latest"},
 )
 
 #: The fast developer-feedback subset.
@@ -72,8 +73,8 @@ def plan(event_name: str) -> dict[str, Any]:
             "A portable-only result is developer feedback. It does not satisfy the "
             "full-matrix requirement for qualification readiness."
             if reduced
-            else "Full matrix: portable, Docker linux/amd64 and native Darwin, then the "
-            "cross-environment portability comparison."
+            else "Full matrix: portable, Docker linux/amd64, native Darwin arm64 and "
+            "native Windows x64, then the cross-environment portability comparison."
         ),
     }
 

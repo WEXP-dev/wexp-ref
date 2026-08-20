@@ -60,6 +60,32 @@ class Artifact:
         return loads_bytes(self.raw, origin=str(self.path))
 
 
+def is_line_ending_only_mismatch(artifact: Artifact, declared_sha256: str) -> bool:
+    """Detect a likely LF/CRLF checkout rewrite without accepting changed bytes.
+
+    This is diagnostic only. It derives alternate newline forms from the buffer
+    that was already read and digested, preserving the single-read invariant.
+    Binary-looking content is deliberately excluded: the bytes must be strict
+    UTF-8 and contain no NUL byte. A match here never makes the observed bytes
+    equivalent to the declared bytes and must not change a failure verdict.
+    """
+
+    raw = artifact.raw
+    if artifact.sha256 == declared_sha256 or b"\x00" in raw:
+        return False
+    try:
+        raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError:
+        return False
+
+    lf = raw.replace(b"\r\n", b"\n")
+    crlf = lf.replace(b"\n", b"\r\n")
+    return any(
+        variant != raw and hashlib.sha256(variant).hexdigest() == declared_sha256
+        for variant in (lf, crlf)
+    )
+
+
 def read_artifact(path: Path) -> Artifact:
     """Read a path exactly once and bind its bytes, digest and size together."""
 

@@ -16,7 +16,7 @@ class LockTests(unittest.TestCase):
         self.assertEqual(result["status"], "VALID_PINNED_CANDIDATE")
         self.assertTrue(result["immutable_identity_available"])
         self.assertEqual(value["package_status"], "candidate")
-        self.assertEqual(value["commit"], "714a0ea4b269a5f8845adf727adfa6e6bba5bb03")
+        self.assertEqual(value["commit"], "cda36a36dcc1b66209e3781a26aa2a0d05e665ea")
 
     def test_exact_pinned_lock_is_ready(self) -> None:
         value = {
@@ -38,7 +38,7 @@ class LockTests(unittest.TestCase):
             (ROOT / "config/wexp-vectors-execution-access.json").read_text()
         )
         self.assertEqual(value["status"], "CANDIDATE_PINNED")
-        self.assertEqual(value["commit"], "714a0ea4b269a5f8845adf727adfa6e6bba5bb03")
+        self.assertEqual(value["commit"], "cda36a36dcc1b66209e3781a26aa2a0d05e665ea")
 
     def test_floating_ref_is_invalid(self) -> None:
         value = {
