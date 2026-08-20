@@ -110,10 +110,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "could not set core.autocrlf=true" }
           $Lock = Get-Content -LiteralPath "config\wexp-vectors-core01.lock.json" -Raw |
               ConvertFrom-Json
-          # The pinned remediation commit is not public main until its companion
-          # PR merges. Avoid first checking out today's attribute-free main and
-          # then retaining its already-normalized worktree files.
-          git clone --no-checkout https://github.com/WEXP-dev/wexp-vectors.git build\wexp-vectors
+          git clone https://github.com/WEXP-dev/wexp-vectors.git build\wexp-vectors
           if ($LASTEXITCODE -ne 0) { throw "wexp-vectors clone failed" }
           git -C build\wexp-vectors checkout --quiet --detach $Lock.commit
           if ($LASTEXITCODE -ne 0) { throw "locked wexp-vectors checkout failed" }

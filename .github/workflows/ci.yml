@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: WEXP-dev/wexp-vectors
-          ref: cda36a36dcc1b66209e3781a26aa2a0d05e665ea
+          ref: 2da7309d75762e4cf1e83b86bd606f4d473b1638
           path: build/wexp-vectors
           persist-credentials: false
 

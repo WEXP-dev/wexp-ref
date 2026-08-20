@@ -127,7 +127,7 @@ standardized protocol-record status.
 ## Core -00 vector slice
 
 The checked-in lock identifies `WEXP-dev/wexp-vectors` commit
-`cda36a36dcc1b66209e3781a26aa2a0d05e665ea` and manifest SHA-256
+`2da7309d75762e4cf1e83b86bd606f4d473b1638` and manifest SHA-256
 `7cea69feae2f5aff309881e7228f5a7bf62ca3cdaa672d0de9d6324022cff306`.
 The manifest identity and every manifest-bound file digest are checked before
 execution. CI additionally confirms that the fetched Git checkout has exactly
