@@ -1,10 +1,24 @@
 {
-  "lock_version": 2,
+  "lock_version": 3,
   "dependency": "wexp-vectors",
   "repository": "WEXP-dev/wexp-vectors",
   "status": "pinned",
   "package_status": "candidate",
-  "commit": "9615a79442ccfe3cc5456b7db7d9a2265fecc4d4",
+  "commit": "cda36a36dcc1b66209e3781a26aa2a0d05e665ea",
   "manifest_path": "manifests/core-01-vectors.json",
-  "manifest_sha256": "c08ff4fd6e4ee7de8c6450bb3e6f72c0ac6f1242c3d7251b81f339826de38ba7"
+  "manifest_sha256": "c08ff4fd6e4ee7de8c6450bb3e6f72c0ac6f1242c3d7251b81f339826de38ba7",
+  "vector_sets": [
+    {
+      "candidate_id": "WEXP-CORE-01-VECTORS-001",
+      "manifest_path": "manifests/core-01-vectors.json",
+      "manifest_sha256": "c08ff4fd6e4ee7de8c6450bb3e6f72c0ac6f1242c3d7251b81f339826de38ba7",
+      "vector_set_sha256": "e315b6055148dbf05c6104c57feb991104b1ae6a47741a99cde5eb50d1900daf"
+    },
+    {
+      "candidate_id": "WEXP-CORE-01-VECTORS-002",
+      "manifest_path": "manifests/core-01-vectors-002.json",
+      "manifest_sha256": "06fa3306fc11748fc761542a4dff506da6ea57da7bd384b26d34af8827e7b3e2",
+      "vector_set_sha256": "8b2dfd5ac6f983201f8869c331b58936e3378f382a3a989b9a63c8d85791facf"
+    }
+  ]
 }

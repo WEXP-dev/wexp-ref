@@ -226,7 +226,7 @@ class TestEnvironmentMatrix(unittest.TestCase):
 
         directory = PKG / "environments"
         labels = sorted(path.stem for path in directory.glob("*.json"))
-        self.assertEqual(labels, ["darwin", "docker", "portable"])
+        self.assertEqual(labels, ["darwin", "docker", "portable", "windows"])
         for label in labels:
             with self.subTest(environment=label):
                 descriptor = environment_module.load_descriptor(label)
@@ -319,13 +319,17 @@ class TestSchedulingPolicy(unittest.TestCase):
 
     def test_pull_request_schedules_the_full_matrix(self) -> None:
         plan = self.policy.plan("pull_request")
-        self.assertEqual(plan["environments"], ["portable", "docker", "darwin"])
+        self.assertEqual(
+            plan["environments"], ["portable", "docker", "darwin", "windows"]
+        )
         self.assertTrue(plan["full_matrix"])
         self.assertTrue(plan["run_portability_comparison"])
 
     def test_workflow_dispatch_schedules_the_full_matrix(self) -> None:
         plan = self.policy.plan("workflow_dispatch")
-        self.assertEqual(plan["environments"], ["portable", "docker", "darwin"])
+        self.assertEqual(
+            plan["environments"], ["portable", "docker", "darwin", "windows"]
+        )
         self.assertTrue(plan["full_matrix"])
 
     def test_a_push_only_result_cannot_claim_qualification_readiness(self) -> None:
@@ -365,18 +369,24 @@ class TestFullMatrixGate(unittest.TestCase):
     """A partial comparison is supporting evidence, never the formal gate."""
 
     def setUp(self) -> None:
+        import copy
+
         from wexp_ref.core01.tools import compare_environments
 
         self.tool = compare_environments
         self._tmp = tempfile.TemporaryDirectory()
         self.output = Path(self._tmp.name)
         self.addCleanup(self._tmp.cleanup)
-        self.bundles = {
-            label: qualify(CANDIDATE, self.output / label, environment_label="portable").bundle
-            for label in ("portable", "docker", "darwin")
-        }
+        portable = qualify(
+            CANDIDATE, self.output / "portable", environment_label="portable"
+        ).bundle
+        self.bundles = {}
+        for label in ("portable", "docker", "darwin", "windows"):
+            bundle = copy.deepcopy(portable)
+            bundle["environment"]["label"] = label
+            self.bundles[label] = bundle
 
-    def test_all_three_environments_make_a_full_matrix_observation(self) -> None:
+    def test_all_four_environments_make_a_full_matrix_observation(self) -> None:
         report = self.tool.compare(self.bundles)
         self.assertTrue(report["full_matrix_observation"])
         self.assertEqual(report["missing_required_environments"], [])
@@ -389,6 +399,26 @@ class TestFullMatrixGate(unittest.TestCase):
         self.assertEqual(report["missing_required_environments"], ["darwin"])
         self.assertFalse(report["sufficient_for_qualification_readiness"])
         self.assertIn("supporting evidence only", " ".join(report["non_claims"]))
+
+    def test_a_supplied_label_cannot_spoof_the_bundle_environment(self) -> None:
+        self.bundles["windows"]["environment"]["label"] = "portable"
+        with self.assertRaisesRegex(ValueError, "environment label mismatch"):
+            self.tool.compare(self.bundles)
+
+    def test_identical_failures_are_portable_but_not_qualification_ready(self) -> None:
+        for bundle in self.bundles.values():
+            bundle["comparison"]["status"] = "FAIL"
+        report = self.tool.compare(self.bundles)
+        self.assertTrue(report["portable"])
+        self.assertTrue(report["full_matrix_observation"])
+        self.assertFalse(report["sufficient_for_qualification_readiness"])
+
+        arguments = ["--require-full-matrix"]
+        for label, bundle in self.bundles.items():
+            path = self.output / f"{label}.json"
+            canonical.write_canonical(path, bundle)
+            arguments.extend(["--bundle", f"{label}={path}"])
+        self.assertEqual(self.tool.main(arguments), 1)
 
     def test_the_required_environment_set_is_the_full_matrix(self) -> None:
         from wexp_ref.core01.tools import matrix_policy

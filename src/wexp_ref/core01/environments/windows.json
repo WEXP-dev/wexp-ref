@@ -1,0 +1,33 @@
+{
+  "description": "Native Windows x64. Recorded because path syntax, filesystem case behaviour, and checkout line-ending policy differ from the Linux and macOS environments.",
+  "environment_specific": [
+    "python_version",
+    "machine",
+    "system",
+    "filesystem_case_sensitive",
+    "temp_path_is_symlinked",
+    "path_separator"
+  ],
+  "environment_version": 1,
+  "kind": "native",
+  "label": "windows",
+  "portable_claim": [
+    "engine_payload_digests",
+    "comparison_summary",
+    "candidate_identity"
+  ],
+  "probes": [
+    "python_version",
+    "python_implementation",
+    "system",
+    "machine",
+    "byteorder",
+    "filesystem_case_sensitive",
+    "temp_path_is_symlinked",
+    "path_separator"
+  ],
+  "require": {
+    "machine": "AMD64",
+    "system": "Windows"
+  }
+}

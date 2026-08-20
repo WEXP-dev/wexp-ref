@@ -127,7 +127,7 @@ standardized protocol-record status.
 ## Core -00 vector slice
 
 The checked-in lock identifies `WEXP-dev/wexp-vectors` commit
-`714a0ea4b269a5f8845adf727adfa6e6bba5bb03` and manifest SHA-256
+`cda36a36dcc1b66209e3781a26aa2a0d05e665ea` and manifest SHA-256
 `7cea69feae2f5aff309881e7228f5a7bf62ca3cdaa672d0de9d6324022cff306`.
 The manifest identity and every manifest-bound file digest are checked before
 execution. CI additionally confirms that the fetched Git checkout has exactly
@@ -173,6 +173,8 @@ expectation-aware component.
 
 ### Running it
 
+On Linux or macOS:
+
     pip install -e .
 
     # Fetch the exact corpus commit this repository pins. Never track a branch:
@@ -192,16 +194,137 @@ expectation-aware component.
 Without `WEXP_CORE01_CORPUS` the corpus-dependent tests skip rather than pass
 silently.
 
+### Windows PowerShell 5.1
+
+These commands are tested as Windows PowerShell commands. Start in the directory
+where you want the two repositories, with Git for Windows and Python 3.12 or
+newer installed. The supported path is an ordinary clone; do not disable
+`core.autocrlf` for it.
+
+```powershell
+$ErrorActionPreference = "Stop"
+
+function Assert-NativeSuccess([string]$Step) {
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Step failed with exit code $LASTEXITCODE"
+    }
+}
+
+git clone https://github.com/WEXP-dev/wexp-ref.git
+Assert-NativeSuccess "clone wexp-ref"
+Set-Location wexp-ref
+$RepoRoot = (Get-Location).Path
+
+python -m pip install --disable-pip-version-check --no-deps -e .
+Assert-NativeSuccess "install wexp-ref"
+
+# An editable install makes this unnecessary, but this is the PowerShell 5.1
+# equivalent of PYTHONPATH=src for running directly from a source checkout.
+$env:PYTHONPATH = Join-Path -Path $RepoRoot -ChildPath "src"
+
+$LockPath = Join-Path -Path $RepoRoot -ChildPath "config\wexp-vectors-core01.lock.json"
+$Lock = Get-Content -LiteralPath $LockPath -Raw | ConvertFrom-Json
+$VectorsPath = Join-Path -Path $RepoRoot -ChildPath "build\wexp-vectors"
+
+git clone https://github.com/WEXP-dev/wexp-vectors.git $VectorsPath
+Assert-NativeSuccess "clone wexp-vectors"
+git -C $VectorsPath checkout --detach $Lock.commit
+Assert-NativeSuccess "check out the locked wexp-vectors commit"
+
+python scripts\verify_core01_corpus.py --lock $LockPath --repository $VectorsPath
+Assert-NativeSuccess "verify the locked commit and manifests"
+
+$QualificationRoot = Join-Path -Path $RepoRoot -ChildPath "build\qualification\windows"
+$Sets = @("WEXP-CORE-01-VECTORS-001", "WEXP-CORE-01-VECTORS-002")
+foreach ($Set in $Sets) {
+    $Candidate = Join-Path -Path $VectorsPath -ChildPath "vectors\$Set"
+    python -m wexp_ref.core01.harness.orchestrate `
+        --candidate $Candidate `
+        --output $QualificationRoot `
+        --environment windows
+    Assert-NativeSuccess "qualify $Set"
+}
+```
+
+Inspect one Set 001 vector:
+
+```powershell
+$Set001 = Join-Path -Path $VectorsPath -ChildPath "vectors\WEXP-CORE-01-VECTORS-001"
+python -m wexp_ref.core01.tools.inspect_vector `
+    --candidate $Set001 `
+    --vector C06
+Assert-NativeSuccess "inspect C06"
+```
+
+The identities used by those commands can be read without Unix utilities:
+
+```powershell
+$RefCommit = git rev-parse HEAD
+Assert-NativeSuccess "read wexp-ref commit"
+$VectorsCommit = git -C $VectorsPath rev-parse HEAD
+Assert-NativeSuccess "read wexp-vectors commit"
+
+"wexp-ref commit: $RefCommit"
+"wexp-vectors commit: $VectorsCommit"
+$Lock.vector_sets | Format-Table candidate_id, manifest_path, manifest_sha256, vector_set_sha256
+foreach ($Entry in $Lock.vector_sets) {
+    $Manifest = Join-Path -Path $VectorsPath -ChildPath $Entry.manifest_path
+    Get-FileHash -LiteralPath $Manifest -Algorithm SHA256
+}
+```
+
+For the fail-closed tamper demonstration, mutate a copy, never the clean corpus.
+The copy retains the candidate basename required by the loader. The helper uses
+absolute paths internally, validates the file and index before writing, and
+prints success only after it verifies the written byte.
+
+```powershell
+$Set001 = Join-Path -Path $VectorsPath -ChildPath "vectors\WEXP-CORE-01-VECTORS-001"
+$TamperParent = Join-Path -Path $RepoRoot -ChildPath (
+    "build\tamper-" + [System.Guid]::NewGuid().ToString("N")
+)
+New-Item -ItemType Directory -Path $TamperParent | Out-Null
+$TamperCandidate = Join-Path -Path $TamperParent -ChildPath "WEXP-CORE-01-VECTORS-001"
+Copy-Item -LiteralPath $Set001 -Destination $TamperCandidate -Recurse
+
+$RelativeVector = "vectors\WEXP-CORE-01-Q001-TV-0001.json"
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+    -File scripts\windows_tamper_demo.ps1 `
+    -Candidate $TamperCandidate `
+    -RelativeFile $RelativeVector `
+    -Index 0
+Assert-NativeSuccess "mutate the copied vector"
+
+python -m wexp_ref.core01.harness.orchestrate `
+    --candidate $TamperCandidate `
+    --output (Join-Path -Path $TamperParent -ChildPath "qualification") `
+    --environment windows
+$TamperExitCode = $LASTEXITCODE
+if ($TamperExitCode -eq 0) {
+    throw "Tampered candidate unexpectedly passed qualification"
+}
+"EXPECTED FAIL-CLOSED RESULT: tampered candidate exited $TamperExitCode"
+```
+
+The final failure is the expected result. It does not prove who or what changed
+the file; it proves that qualification did not accept different bytes.
+
+Digest mismatches always remain qualification failures. When a textual file's
+observed bytes differ from its declared digest only by LF/CRLF normalization,
+the failure also includes a non-authoritative Windows checkout hint. The hint
+does not make the bytes equivalent and does not claim whether tampering occurred.
+
 ### Public matrix
 
 [`core01-qualification.yml`](.github/workflows/core01-qualification.yml) runs the
-set in three declared environments and then compares them:
+two public vector sets in four declared environments and then compares each set:
 
 | Environment | Runner | Kind |
 |---|---|---|
 | `portable` | `ubuntu-latest` | host Python, no container, no platform requirement |
 | `docker` | `ubuntu-latest` | pinned `linux/amd64` image, digest-locked |
 | `darwin` | `macos-15` | native macOS arm64 |
+| `windows` | `windows-latest` | native Windows x64; vector clone uses `core.autocrlf=true` |
 
 Scheduling is owned by
 [`matrix_policy.py`](src/wexp_ref/core01/tools/matrix_policy.py) rather than
@@ -210,10 +333,11 @@ request or manual dispatch runs the full matrix plus the portability comparison.
 **A portable-only push result is not evidence of qualification readiness**; that
 needs a complete full-matrix observation at one exact head.
 
-The comparison asserts that the engine payload digests, the comparison summary
-and the candidate identity are identical across environments. Anything
-environment-specific — interpreter build, machine, filesystem case sensitivity —
-is recorded but deliberately excluded from that claim.
+For each set, the comparison asserts that the engine payload digests, the
+comparison summary and the candidate identity are identical across environments.
+Anything environment-specific — interpreter build, machine, filesystem case
+sensitivity, or path syntax — is recorded but deliberately excluded from that
+claim.
 
 ### When the matrix passed, and when it did not
 
@@ -224,7 +348,11 @@ The two states must not be collapsed:
   deliberately never recorded as one. The publication candidate
   `PC-core-01-001` was issued on that basis.
 - **After publication**, once the tooling was public and public runners were
-  available, the full matrix completed **PASS** — the current state shown above.
+  available, the then-declared Linux/macOS matrix completed **PASS**.
+- **Windows was added later** as a required native leg after external consumer
+  testing found checkout line-ending normalization. A historical Linux/macOS
+  pass is not a Windows pass; the current workflow must complete all four legs
+  for both sets before claiming the current full-matrix observation passed.
 
 The later pass does not retroactively alter `PC-core-01-001` or the
 publication-time qualification state, and it is not a prerequisite attached to
@@ -254,7 +382,7 @@ You are not limited to the published corpus. A candidate is data — a descripto
 a profile and vectors — and `new_candidate` materialises one from a seed:
 
     PYTHONPATH=src python3 -m wexp_ref.core01.tools.new_candidate \
-      --seed my-seed.json --output build/my-candidate
+      --seed my-seed.json --output build/candidates
 
 A seed carries `candidate_id`, `authority`, `profile` and `vectors`. The two
 seeds under [`src/wexp_ref/core01/seeds/`](src/wexp_ref/core01/seeds/) are
@@ -262,6 +390,13 @@ working examples; the profile is where the token registry, the base ordering and
 the scope keys live, and the published Core-01 set's
 [`profile.json`](https://github.com/WEXP-dev/wexp-vectors/blob/main/vectors/WEXP-CORE-01-VECTORS-001/profile.json)
 is the Core-01 registry in full.
+
+`--output` names the **parent** directory. `new_candidate` creates
+`<output>/<candidate_id>`, and the resulting candidate directory basename must
+equal the descriptor's `candidate_id`. This is an enforced loader invariant, not
+just a naming convention; it is a harness package-layout requirement, not a
+Core-01 semantic rule. For example, a seed whose ID is `MY-CANDIDATE` with
+`--output build/candidates` is evaluated from `build/candidates/MY-CANDIDATE`.
 
 `authority` is how a candidate binds to a specification. Set
 `published_specification` to `true` and the harness **requires** the bundled
@@ -276,7 +411,8 @@ its own output.
 Then evaluate as usual:
 
     PYTHONPATH=src python3 -m wexp_ref.core01.harness.orchestrate \
-      --candidate build/my-candidate --output build/mine --environment portable
+      --candidate build/candidates/MY-CANDIDATE \
+      --output build/mine --environment portable
 
 #### A worked example: invocation without execution evidence
 
@@ -305,8 +441,9 @@ Do not describe this implementation as full Core-01 conformance.
 
 ### What a pass means
 
-Sixteen transcribed expectations were met by two independent implementations in
-every declared environment. It is not certification, conformance, or endorsement.
+The formal gate runs the sixteen Set 001 expectations and the nine Set 002
+expectations through two independent implementations in every declared
+environment. A pass is not certification, conformance, or endorsement.
 
 ### GAP-0014 — single-read artifact loading
 

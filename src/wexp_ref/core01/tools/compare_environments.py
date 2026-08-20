@@ -30,11 +30,12 @@ from wexp_ref.core01.harness import canonical
 PORTABLE = "PORTABLE ACROSS ENVIRONMENTS"
 NOT_PORTABLE = "NOT PORTABLE"
 INCOMPLETE = "FULL-MATRIX OBSERVATION INCOMPLETE"
+NOT_READY = "FULL-MATRIX QUALIFICATION NOT READY"
 
 #: The environments a formal full-matrix observation must include. Comparing a
 #: subset is legitimate engineering evidence but must never be reported as the
 #: full-matrix observation that qualification readiness requires.
-REQUIRED_FULL_MATRIX = frozenset({"portable", "docker", "darwin"})
+REQUIRED_FULL_MATRIX = frozenset({"portable", "docker", "darwin", "windows"})
 
 
 def portable_projection(bundle: dict[str, Any]) -> dict[str, Any]:
@@ -51,6 +52,21 @@ def portable_projection(bundle: dict[str, Any]) -> dict[str, Any]:
 def compare(bundles: dict[str, dict[str, Any]]) -> dict[str, Any]:
     if len(bundles) < 2:
         raise ValueError("at least two environment bundles are required")
+
+    for supplied_label, bundle in bundles.items():
+        if not isinstance(supplied_label, str) or not supplied_label:
+            raise ValueError("every bundle must have a non-empty environment label")
+        if not isinstance(bundle, dict):
+            raise ValueError(f"{supplied_label}: qualification bundle must be an object")
+        environment = bundle.get("environment")
+        if not isinstance(environment, dict):
+            raise ValueError(f"{supplied_label}: qualification bundle has no environment object")
+        embedded_label = environment.get("label")
+        if embedded_label != supplied_label:
+            raise ValueError(
+                f"environment label mismatch: supplied {supplied_label!r}, "
+                f"bundle declares {embedded_label!r}"
+            )
 
     missing = sorted(REQUIRED_FULL_MATRIX - set(bundles))
     full_matrix = not missing
@@ -78,13 +94,19 @@ def compare(bundles: dict[str, dict[str, Any]]) -> dict[str, Any]:
         name: values for name, values in varied.items() if len(set(map(repr, values.values()))) > 1
     }
 
+    every_comparison_passed = all(
+        projection["comparison_status"] == "PASS" for projection in projections.values()
+    )
+
     return {
         "record_kind": "wexp-environment-portability-comparison",
         "environments": sorted(bundles),
         "full_matrix_observation": full_matrix,
         "missing_required_environments": missing,
         "observation_scope": "full-matrix" if full_matrix else "partial",
-        "sufficient_for_qualification_readiness": full_matrix and len(unique) == 1,
+        "sufficient_for_qualification_readiness": (
+            full_matrix and len(unique) == 1 and every_comparison_passed
+        ),
         "portable_projection_sha256": digests,
         "portable": len(unique) == 1,
         "portable_differences": sorted(set(differing_fields)),
@@ -118,17 +140,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    bundles: dict[str, dict[str, Any]] = {}
-    for item in args.bundle:
-        label, _, raw = item.partition("=")
-        if not raw:
-            print(f"NOT PORTABLE — malformed --bundle {item!r}", file=sys.stderr)
-            return 1
-        bundles[label] = canonical.load_json(Path(raw))
-
     try:
+        bundles: dict[str, dict[str, Any]] = {}
+        for item in args.bundle:
+            label, _, raw = item.partition("=")
+            if not label or not raw or label in bundles:
+                raise ValueError(f"malformed or duplicate --bundle {item!r}")
+            bundles[label] = canonical.load_json(Path(raw))
         report = compare(bundles)
-    except (ValueError, canonical.CanonicalError) as exc:
+    except (OSError, KeyError, TypeError, ValueError, canonical.CanonicalError) as exc:
         print(f"{NOT_PORTABLE} — {exc}", file=sys.stderr)
         return 1
 
@@ -148,6 +168,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         for difference in report["portable_differences"]:
             print(f"DIFFERENCE: {difference}", file=sys.stderr)
         print(NOT_PORTABLE, file=sys.stderr)
+        return 1
+    if args.require_full_matrix and not report["sufficient_for_qualification_readiness"]:
+        print(
+            f"{NOT_READY} — one or more qualification comparisons did not PASS",
+            file=sys.stderr,
+        )
         return 1
     scope = report["observation_scope"]
     print(f"{PORTABLE} (observation scope: {scope})")

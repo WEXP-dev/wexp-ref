@@ -30,6 +30,11 @@ from . import canonical, schema as schema_module
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schema"
 SUPPORTED_DESCRIPTOR_VERSIONS = frozenset({1})
 SUPPORTED_PROFILE_VERSIONS = frozenset({1})
+LINE_ENDING_MISMATCH_HINT = (
+    "hint: observed content differs only by line-ending normalization; on Windows verify "
+    "checkout line-ending settings and repository attributes. This non-authoritative hint "
+    "does not change the FAIL verdict."
+)
 
 
 class CandidateError(ValueError):
@@ -136,6 +141,12 @@ def _resolve_inside(root: Path, relative: str, *, what: str) -> Path:
     return candidate
 
 
+def _digest_mismatch_hint(artifact: canonical.Artifact, declared_sha256: str) -> str:
+    if canonical.is_line_ending_only_mismatch(artifact, declared_sha256):
+        return f"\n{LINE_ENDING_MISMATCH_HINT}"
+    return ""
+
+
 def _verify_bundled_specification(root: Path, descriptor: dict[str, Any]) -> canonical.Artifact | None:
     """Prove the bundled specification bytes are the ones the descriptor declares.
 
@@ -165,6 +176,7 @@ def _verify_bundled_specification(root: Path, descriptor: dict[str, Any]) -> can
         raise CandidateError(
             f"bundled specification does not match the declared authority: "
             f"{relative!r} declared {authority['xml_sha256']}, observed {artifact.sha256}"
+            f"{_digest_mismatch_hint(artifact, authority['xml_sha256'])}"
         )
     declared_bytes = authority.get("xml_bytes")
     if declared_bytes is not None and artifact.size != declared_bytes:
@@ -196,7 +208,8 @@ def _verify_bound_files(root: Path, descriptor: dict[str, Any]) -> dict[Path, ca
         artifact = canonical.read_artifact(path)
         if artifact.sha256 != entry["sha256"]:
             raise CandidateError(
-                f"bound_files: SHA-256 mismatch for {relative!r}: declared {entry['sha256']}, observed {artifact.sha256}"
+                f"bound_files: SHA-256 mismatch for {relative!r}: declared {entry['sha256']}, "
+                f"observed {artifact.sha256}{_digest_mismatch_hint(artifact, entry['sha256'])}"
             )
         if artifact.size != entry["bytes"]:
             raise CandidateError(
@@ -277,7 +290,9 @@ def load(root: Path) -> Candidate:
     profile_digest = profile_artifact.sha256
     if profile_digest != descriptor["profile"]["sha256"]:
         raise CandidateError(
-            f"profile digest mismatch: declared {descriptor['profile']['sha256']}, observed {profile_digest}"
+            f"profile digest mismatch: declared {descriptor['profile']['sha256']}, "
+            f"observed {profile_digest}"
+            f"{_digest_mismatch_hint(profile_artifact, descriptor['profile']['sha256'])}"
         )
     profile = profile_artifact.json()
     _validate(profile, "profile", "profile.json")

@@ -4,7 +4,7 @@
   "repository": "WEXP-dev/wexp-vectors",
   "status": "pinned",
   "package_status": "candidate",
-  "commit": "714a0ea4b269a5f8845adf727adfa6e6bba5bb03",
+  "commit": "cda36a36dcc1b66209e3781a26aa2a0d05e665ea",
   "manifest_path": "manifests/vectors.json",
   "manifest_sha256": "7cea69feae2f5aff309881e7228f5a7bf62ca3cdaa672d0de9d6324022cff306"
 }
