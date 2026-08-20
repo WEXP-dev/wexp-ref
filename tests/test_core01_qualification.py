@@ -184,12 +184,15 @@ class TestQualification(unittest.TestCase):
 
     def test_engine_payload_digests_are_environment_independent(self) -> None:
         # Two environments satisfiable on any host running this suite. The
-        # portable/docker/darwin triple is exercised by the matrix workflow;
+        # portable/docker/darwin/windows set is exercised by the matrix workflow;
         # here the point is that the payload digest does not move when the
         # environment does.
         import platform
 
-        second_label = "darwin" if platform.system() == "Darwin" else "docker"
+        second_label = {
+            "Darwin": "darwin",
+            "Windows": "windows",
+        }.get(platform.system(), "docker")
         first = qualify(CANDIDATE, self.output, environment_label="portable")
         second = qualify(CANDIDATE, self.output, environment_label=second_label)
         for engine in ("independent", "reference"):
