@@ -12,6 +12,7 @@ from typing import Any
 
 from wexp_ref import __version__
 from wexp_ref.core00 import PackageError, run_package
+from wexp_ref.interop_cli import add_interop_parser
 from wexp_ref.locks import validate_vectors_lock
 from wexp_ref.runner import PlanError, run_plan
 
@@ -54,24 +55,10 @@ def _xml(args: argparse.Namespace) -> int:
     try:
         ET.parse(args.input)
     except (ET.ParseError, OSError) as exc:
-        result = {
-            "status": "INVALID",
-            "artifact": str(args.input),
-            "diagnostic": str(exc),
-            "non_claims": ["XML parsing does not establish IETF or specification acceptance."],
-        }
+        result = {"status": "INVALID", "artifact": str(args.input), "diagnostic": str(exc), "non_claims": ["XML parsing does not establish IETF or specification acceptance."]}
         _write_json(result, args.output)
         return 2
-    result = {
-        "status": "VALID",
-        "artifact": str(args.input),
-        "sha256": _sha256(args.input),
-        "parser": "python.xml.etree.ElementTree",
-        "non_claims": [
-            "XML parsing does not establish IETF or specification acceptance.",
-            "No WEXP claim was evaluated for semantic support.",
-        ],
-    }
+    result = {"status": "VALID", "artifact": str(args.input), "sha256": _sha256(args.input), "parser": "python.xml.etree.ElementTree", "non_claims": ["XML parsing does not establish IETF or specification acceptance.", "No WEXP claim was evaluated for semantic support."]}
     _write_json(result, args.output)
     return 0
 
@@ -119,28 +106,21 @@ def build_parser() -> argparse.ArgumentParser:
     runner = commands.add_parser("run", help="run an argv-only declarative plan")
     runner.add_argument("plan", type=Path)
     runner.add_argument("--workspace", type=Path, default=Path.cwd())
-    runner.add_argument(
-        "--record", type=Path, default=Path("WEXP-REF-RUNNER-OBSERVATION.json")
-    )
+    runner.add_argument("--record", type=Path, default=Path("WEXP-REF-RUNNER-OBSERVATION.json"))
     runner.set_defaults(handler=_run)
 
     lock = commands.add_parser("validate-lock", help="check the wexp-vectors dependency lock")
-    lock.add_argument(
-        "input", type=Path, nargs="?", default=Path("config/wexp-vectors.lock.json")
-    )
+    lock.add_argument("input", type=Path, nargs="?", default=Path("config/wexp-vectors.lock.json"))
     lock.add_argument("--output", "-o", type=Path)
     lock.set_defaults(handler=_lock)
 
-    core00_package = commands.add_parser(
-        "core00-run-vectors",
-        help="run the exact pinned Core -00 candidate vector package",
-    )
+    core00_package = commands.add_parser("core00-run-vectors", help="run the exact pinned Core -00 candidate vector package")
     core00_package.add_argument("package", type=Path)
-    core00_package.add_argument(
-        "--lock", type=Path, default=Path("config/wexp-vectors.lock.json")
-    )
+    core00_package.add_argument("--lock", type=Path, default=Path("config/wexp-vectors.lock.json"))
     core00_package.add_argument("--output", "-o", type=Path)
     core00_package.set_defaults(handler=_core00_run_vectors)
+
+    add_interop_parser(commands)
     return parser
 
 
