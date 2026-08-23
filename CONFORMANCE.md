@@ -6,8 +6,11 @@ This is a deliberate, enumerated partial surface, not a claim of complete Core
 appraisal. Do not describe this implementation as a conformance implementation,
 as full Core-01 conformance, or as a complete Core appraisal implementation.
 
-The public sixteen-vector corpus is **not a conformance suite**. Passing it means
-sixteen transcribed expectations were met.
+The public Core-01 vector sets are **not a conformance suite**. Passing them
+means this implementation agreed with the specification-derived expectations
+those sets exercise — sixteen in Set 001 and nine in Set 002. It does not
+establish complete Core appraisal or full Core-01 conformance, and the surface
+claimed here remains exactly the one enumerated below.
 
 ## Implemented
 
@@ -79,7 +82,7 @@ from the specification text rather than from either implementation:
 | Unrelated over-ceiling finding | §8.6 the row requires *a present asserted-base aggregate* deeper than the ceiling | any over-ceiling finding produced `E_BASE_EXCEEDS_BOUNDARY` | only the asserted base does |
 | Extra accept condition | §8.4 / Verdict: exact support **and** counter-evidence not blocking | both engines also required an empty diagnostic set | the published two conditions only |
 
-The published sixteen vectors are unaffected by all three corrections: none of
+The published Set 001 vectors are unaffected by all three corrections: none of
 them carries two qualifiers on one base, an unrelated over-ceiling finding, or an
 accept with a non-empty diagnostic set. Their evidence bundle digest is unchanged.
 
@@ -138,9 +141,9 @@ unregistered rows are unchanged and remain known absences; in particular
 `E_INDEPENDENCE_NOT_ESTABLISHED` still collapses onto the fallback, which is
 tested rather than assumed.
 
-The published sixteen are again unaffected — none of them asserts a qualifier
-whose aggregate is present with an assessment that did not run — and their
-evidence bundle digest is unchanged at
+The published Set 001 vectors are again unaffected — none of them asserts a
+qualifier whose aggregate is present with an assessment that did not run — and
+their evidence bundle digest is unchanged at
 `d673a814ca406e28d61ab0bbfeb64005f1ecadbde5ba069751b95b5fd59df4bb`.
 
 Both engines were corrected separately in their own idioms. No shared semantic
