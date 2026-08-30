@@ -50,6 +50,19 @@ def _require(condition: bool, detail: str) -> None:
         raise _Reject(detail)
 
 
+def _scope_key(record: dict[str, Any]) -> tuple[Any, Any]:
+    """The (target, evaluation context) a record is scoped to.
+
+    Section 8.4 admits a finding only when f.target == input.target and
+    f.evaluation_context_ref == input.evaluation_context.id, and Section 8.1
+    states the same requirement for the boundary finding. Comparing whole keys
+    rather than testing two fields in sequence keeps the two halves of the scope
+    from drifting apart.
+    """
+
+    return (record.get("target"), record.get("evaluation_context_ref"))
+
+
 def _passes(profile: dict[str, Any], finding: dict[str, Any]) -> bool:
     assessment = _domain(profile, "assessment")
     binding = finding.get("target_binding")
@@ -99,7 +112,12 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
         if fatal:
             return claim_algebra.fixed_rejection(profile, fatal)
 
+        scope = (value.get("target"), (value.get("evaluation_context") or {}).get("id"))
         boundary = value.get("boundary_finding") or {}
+        _require(
+            _scope_key(boundary) == scope,
+            "boundary finding is scoped to another target or evaluation context",
+        )
         _require(
             boundary.get("status") == "supported" and boundary.get("target_binding") == "supported",
             "this candidate requires an accepted, target-bound Boundary Ceiling",
@@ -120,6 +138,10 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
         for finding in value.get("base_findings") or []:
             base = finding.get("base")
             _require(base in bases, "base finding uses an unknown base")
+            if _scope_key(finding) != scope:
+                # Foreign-scoped: it describes a different appraisal, so it is
+                # neither supplied evidence here nor negative evidence here.
+                continue
             supplied_bases.add(base)
             if not _passes(profile, finding):
                 continue
@@ -151,6 +173,8 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
                 base in bases and qualifier in profile["orderings"]["qualifier"],
                 "qualifier finding is outside this candidate",
             )
+            if _scope_key(finding) != scope:
+                continue
             supplied_qualifiers[(base, qualifier)] = finding
             base_key = (base, ())
             admitted = (
