@@ -82,6 +82,33 @@ def _g_member_typing(profile: dict[str, Any], value: Any) -> tuple[str, str] | N
     return None
 
 
+def _g_scope_contract(profile: dict[str, Any], value: Any) -> tuple[str, str] | None:
+    """Exact target and context scope, one of the Section 6.2 position-4 families.
+
+    Section 6: "The boundary finding, every base and qualifier aggregate, and
+    every profile-gap entry have a target equal to the top-level target and an
+    evaluation_context_ref equal to the top-level evaluation-context identifier.
+    A foreign-scoped aggregate is not negative evidence for this appraisal; it
+    violates the normalized-input cross-field contract and produces
+    E_PROFILE_MAPPING_INVALID."
+
+    The contract is a property of the whole input, so one conforming aggregate
+    does not rescue an input that also carries a foreign-scoped one.
+    """
+
+    scope = (value.get("target"), (value.get("evaluation_context") or {}).get("id"))
+    groups = (("boundary finding", [value.get("boundary_finding") or {}]),
+              ("base finding", value.get("base_findings") or []),
+              ("qualifier finding", value.get("qualifier_findings") or []),
+              ("profile gap entry", value.get("profile_evaluation_gaps") or []))
+    for label, records in groups:
+        for record in records:
+            if (record.get("target"), record.get("evaluation_context_ref")) != scope:
+                return ("profile_mapping_invalid",
+                        f"a {label} is scoped to another target or evaluation context")
+    return None
+
+
 def _g_cross_field(profile: dict[str, Any], value: Any) -> tuple[str, str] | None:
     """Cross-field invariants, including the supplied-fatal category rule."""
 
@@ -112,6 +139,7 @@ GUARDS: tuple[Callable[[dict[str, Any], Any], tuple[str, str] | None], ...] = (
     _g_record_shape,
     _g_semantics_version,
     _g_member_typing,
+    _g_scope_contract,
     _g_cross_field,
 )
 
