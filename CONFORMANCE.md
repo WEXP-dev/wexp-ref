@@ -16,9 +16,12 @@ claimed here remains exactly the one enumerated below.
 
 - §4.4 typed claims and the admissible domain, including multi-qualifier states
 - §4.5 structural product order, and its exclusion as an exact-support predicate
-- §6.2 ingress ordering positions 1–4 and the fixed rejection projection
-- §8.1 supported-claim construction over the subsets of Q(b), with limitation
-  carry-through
+- §6.2 ingress ordering positions 1–3, the fixed rejection projection, and two of
+  the seven cross-field invariant families at position 4: exact target and context
+  scope, and the token-category rule — see the known absences for the other five
+- §8.1 supported-claim construction over the subsets of Q(b), including the
+  requirement that a finding name the same target and evaluation context as the
+  appraisal input, with limitation carry-through
 - §8.2 counter-evidence blocking, scoped to entries whose affected claims include
   the asserted claim or all-admissible-claims
 - §8.4 the accept / downgrade / reject verdict conditions as published, but
@@ -63,6 +66,7 @@ surface would have to implement them.
 | Ten further §8.6 diagnostic rows unimplemented | KNOWN ABSENCE — outside the seven roles the current profile registers |
 | An unaccepted boundary returned as an engine rejection rather than through the §8.6 boundary rows | KNOWN ABSENCE — the §8.6 boundary rows are not implemented, so the condition is surfaced as a rejection rather than silently dropped |
 | §6.2 ingress position 5 (supplied fatal conditions) beyond the profile's registered tokens | INTENTIONALLY OUT OF CURRENT PROFILE |
+| §6.2 position 4 cross-field families other than exact scope and token category — aggregate cardinality and keys, the counter-evidence sentinel, qualifier combinations, conditional `ceiling_base`, and evaluation-scope consistency with extension-key binding | NOT_IMPLEMENTED — five of the seven families §6.2 names at that position |
 | §8.4 projection of registered substantive reasons carried by an asserted-role finding or an exact premise of a support entry | KNOWN ABSENCE — unimplemented on all four routes. Unreachable under this profile, which registers no token that can validly carry it, so no valid input currently observes the omission. Recorded anyway; see below |
 
 None of the above is classified as REQUIRED FOR CLAIMED SURFACE or as an ACTUAL
@@ -122,6 +126,32 @@ skips, naming this gap, rather than passing against a weaker one — which is wh
 it had silently been doing after the D2a correction removed the diagnostic it
 relied on. The three reachable corners of the verdict rule are tested directly.
 
+## Corrected scope-contract deviation
+
+A fifth deviation was found after the first four, and unlike them it was not found
+by an independent implementation or by comparing the two engines. It was found by
+reading §8.1 and §8.4 against a corpus that could not exercise them.
+
+| Deviation | Published rule | Was | Now |
+|---|---|---|---|
+| A finding scoped to another target or evaluation context could support a claim | §6 binds the boundary finding, every base and qualifier aggregate and every profile-gap entry to the top-level target and evaluation-context identifier; §6.2 lists exact target and context scope among the position-4 cross-field invariants; §8.1 and §8.4 independently require the same identity at admission | neither engine tested either field, so a foreign-scoped finding was admitted and could carry a claim to accept | ingress returns the Core-derived `E_PROFILE_MAPPING_INVALID` through the fixed rejection projection, and §8 admission refuses the finding as defence in depth |
+
+Scope of the claim: this implements the **exact target and context scope** family
+of §6.2 position 4. It does not implement the other five families named there,
+which stay in the known-absence table above. At §8 it implements the exact-scope
+predicate of §8.1 and §8.4; it is not a claim about the complete §8 surface.
+
+Authority: `WEXP-CORE-01-VECTORS-003`, digest
+`338b14cffdb846ca2aec4574ad9e52dd3615e15c8de7861d922e4323989440cd`, whose
+expectations were derived from the published draft and frozen before either engine
+was repaired. Both engines were repaired independently against it. Each normative
+predicate above is mutation-challenged per engine, with the full logical predicate
+neutralised rather than one duplicated code location.
+
+Sets 001 and 002 are unaffected and their evidence bundle digests are unchanged at
+`d673a814ca406e28d61ab0bbfeb64005f1ecadbde5ba069751b95b5fd59df4bb` and
+`eb5ae9de397f7340078cb7dba20ada4041c55fb9397659ba77a26c360639007d`.
+
 ## Corrected diagnostic-projection deviation
 
 A successor vector set, whose expectations were frozen with per-expectation
@@ -162,3 +192,10 @@ It is **not** evidence of semantic correctness, and it does not protect against 
 shared interpretation defect — all three deviations above were present in both
 engines identically, and their differential agreement could not detect any of
 them. Only an implementation derived independently from the specification can.
+
+The scope-contract deviation sharpens the point. Every finding in the published
+corpus used one target and one evaluation context, so no input could distinguish an
+implementation that enforced the scope contract from one that ignored it. Both
+engines ignored it and agreed on every published vector. A differential harness
+detects divergent mistakes; a dimension that never varies produces no divergence to
+detect, and agreement on that dimension measured nothing.
