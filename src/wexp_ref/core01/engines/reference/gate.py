@@ -88,8 +88,27 @@ def screen(profile: dict[str, Any], value: Any) -> tuple[str, str] | None:
                 f"member {member!r} is not an entry",
             )
 
-    # 4. cross-field invariants, including the supplied-fatal category rule
+    # 4. cross-field invariants. Section 6.2 names several families here; this
+    #    engine implements exact target and context scope and the supplied-fatal
+    #    category rule. Section 6 binds "the boundary finding, every base and
+    #    qualifier aggregate, and every profile-gap entry" to the top-level target
+    #    and evaluation-context identifier, and a foreign-scoped aggregate "is not
+    #    negative evidence for this appraisal" -- it makes the whole input
+    #    contract-invalid, before any claim is appraised.
     position = 4
+    target = value.get("target")
+    context = (value.get("evaluation_context") or {}).get("id")
+    scoped = [("boundary_finding", [value.get("boundary_finding") or {}])]
+    for member in ("base_findings", "qualifier_findings", "profile_evaluation_gaps"):
+        scoped.append((member, value.get(member) or []))
+    for member, records in scoped:
+        for record in records:
+            if record.get("target") != target or record.get("evaluation_context_ref") != context:
+                return (
+                    _token(profile, "profile_mapping_invalid"),
+                    f"{member} entry is scoped to another target or evaluation context",
+                )
+
     registry = profile["token_registry"]
     derived_only = tuple(registry.get("derived_only") or ())
     supplied_fatal = registry.get("supplied_fatal")

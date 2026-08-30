@@ -49,12 +49,31 @@ def _check(condition: bool, detail: str) -> None:
         raise OutsideSlice(detail)
 
 
-def _finding_admitted(profile: dict[str, Any], finding: dict[str, Any]) -> bool:
+def _in_scope(value: dict[str, Any], finding: dict[str, Any]) -> bool:
+    """Section 8.1: the finding names the same target and evaluation context as
+    the appraisal input. Section 8.4 states it as a conjunct of the admission
+    predicate itself: f.target == input.target and f.evaluation_context_ref ==
+    input.evaluation_context.id. A finding scoped elsewhere describes a different
+    appraisal and cannot contribute support to this one.
+    """
+
+    context = (value.get("evaluation_context") or {}).get("id")
+    return (
+        finding.get("target") == value.get("target")
+        and finding.get("evaluation_context_ref") == context
+    )
+
+
+def _finding_admitted(
+    profile: dict[str, Any], finding: dict[str, Any], value: dict[str, Any]
+) -> bool:
     assessment = _domain(profile, "assessment")
     binding = finding.get("target_binding")
     validation = finding.get("semantic_validation")
     _check(binding in assessment, f"target_binding outside domain: {binding!r}")
     _check(validation in assessment, f"semantic_validation outside domain: {validation!r}")
+    if not _in_scope(value, finding):
+        return False
     return (binding, validation) == ("supported", "supported")
 
 
@@ -91,6 +110,11 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
         _check(boundary.get("status") == "supported", "boundary ceiling is not accepted")
         _check(boundary.get("target_binding") == "supported", "boundary ceiling is not target-bound")
         bases = profile["orderings"]["base"]
+        _check(
+            _in_scope(value, {"target": boundary.get("target"),
+                              "evaluation_context_ref": boundary.get("evaluation_context_ref")}),
+            "boundary finding is not scoped to the appraisal target and context",
+        )
         ceiling = boundary.get("ceiling_base")
         _check(ceiling in bases, "accepted boundary lacks a valid ceiling")
         ceiling_rank = bases.index(ceiling)
@@ -111,10 +135,17 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
         for finding in value.get("base_findings") or []:
             base = finding.get("base")
             _check(base in bases, "base finding uses an unknown base")
+            if not _in_scope(value, finding):
+                # Section 6: a foreign-scoped aggregate "is not negative evidence
+                # for this appraisal". It is not part of this appraisal at all, so
+                # it must not even count as a supplied aggregate — otherwise it
+                # would suppress the Section 8.6 absence row for the aggregate
+                # that is genuinely missing here.
+                continue
             # Presence is not admission: Section 8.6 distinguishes an absent
             # aggregate from a present one whose status did not pass.
             present_bases.add(base)
-            if not _finding_admitted(profile, finding):
+            if not _finding_admitted(profile, finding, value):
                 continue
             if bases.index(base) > ceiling_rank:
                 # Section 8.6 assigns this row to the asserted-base aggregate.
@@ -141,9 +172,11 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             qualifier = finding.get("qualifier")
             _check(base in bases, "qualifier finding uses an unknown base")
             _check(qualifier in profile["orderings"]["qualifier"], "qualifier finding uses an unknown qualifier")
-            admitted = _finding_admitted(profile, finding) and _independence_satisfied(
+            admitted = _finding_admitted(profile, finding, value) and _independence_satisfied(
                 profile, qualifier, finding.get("independence_validation")
             )
+            if not _in_scope(value, finding):
+                continue
             present_qualifiers[(base, qualifier)] = finding
             parent = find_record(base, [])
             if not admitted or parent is None:

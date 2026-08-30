@@ -36,7 +36,7 @@ class WindowsMatrixTests(unittest.TestCase):
             {entry["environment"] for entry in matrix_policy.FULL_MATRIX},
         )
 
-    def test_lock_binds_both_published_sets_and_manifests(self) -> None:
+    def test_lock_binds_every_published_set_and_manifest(self) -> None:
         lock = json.loads(LOCK.read_bytes())
         self.assertEqual(lock["lock_version"], 3)
         entries = {entry["candidate_id"]: entry for entry in lock["vector_sets"]}
@@ -44,6 +44,10 @@ class WindowsMatrixTests(unittest.TestCase):
         self.assertEqual(
             entries["WEXP-CORE-01-VECTORS-001"]["vector_set_sha256"],
             "e315b6055148dbf05c6104c57feb991104b1ae6a47741a99cde5eb50d1900daf",
+        )
+        self.assertEqual(
+            entries["WEXP-CORE-01-VECTORS-003"]["vector_set_sha256"],
+            "338b14cffdb846ca2aec4574ad9e52dd3615e15c8de7861d922e4323989440cd",
         )
         self.assertEqual(
             entries["WEXP-CORE-01-VECTORS-002"]["vector_set_sha256"],
@@ -98,7 +102,7 @@ class CorpusVerifierTests(unittest.TestCase):
             repository.mkdir()
             entries = []
             bound_paths = []
-            for number, candidate_id in ((1, "WEXP-CORE-01-VECTORS-001"), (2, "WEXP-CORE-01-VECTORS-002")):
+            for number, candidate_id in enumerate(sorted(REQUIRED_CANDIDATES), start=1):
                 candidate = repository / "vectors" / candidate_id
                 candidate.mkdir(parents=True)
                 bound = candidate / "descriptor.json"
@@ -184,7 +188,7 @@ class CorpusVerifierTests(unittest.TestCase):
 
             with mock.patch.object(Path, "read_bytes", tracked_read_bytes):
                 results = verify(lock_path, repository)
-            self.assertEqual(len(results), 3)
+            self.assertEqual(len(results), 1 + len(REQUIRED_CANDIDATES))
             self.assertIn(commit, results[0])
             self.assertEqual(set(manifest_paths.values()), {1})
 
