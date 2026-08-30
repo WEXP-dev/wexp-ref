@@ -1527,3 +1527,184 @@ class TestD5Section86DiagnosticRows(unittest.TestCase):
         self.assertEqual(summary["vectors"], 16)
         self.assertEqual(summary["agree"], 16)
         self.assertEqual(summary["expected_mismatch"], 0)
+
+
+class TestScopeIdentityAdmission(unittest.TestCase):
+    """Section 6.2 position 4 and Section 8.1/8.4, tested at two different layers.
+
+    A complete appraisal of an input carrying a foreign-scoped aggregate is a
+    fatal reject: Section 6 makes exact target and context scope a cross-field
+    invariant, so the input is contract-invalid as a whole and Section 8 never
+    runs. The public vector set tests exactly that.
+
+    Underneath it, Section 8.1 and Section 8.4 independently refuse to admit such
+    a finding. That defence is tested here by calling the engine's internal
+    admission path with ingress bypassed, because a complete appraisal can never
+    reach it. Two layers, tested separately, and neither result is published as
+    though it were the other.
+    """
+
+    CORPUS = Path(os.environ.get("WEXP_CORE01_CORPUS", "")) if os.environ.get("WEXP_CORE01_CORPUS") else None
+
+    def setUp(self) -> None:
+        if self.CORPUS is None or not self.CORPUS.is_dir():
+            raise unittest.SkipTest("set WEXP_CORE01_CORPUS to the pinned wexp-vectors Core-01 set")
+        self.candidate = load(self.CORPUS)
+        self.base = self.candidate.vectors[0].payload["input"]
+
+    def _fatal_candidate(self):
+        """A candidate whose profile names the token Core emits at ingress
+        position 4. Section 6.2 derives E_PROFILE_MAPPING_INVALID itself, but the
+        profile still has to name it; a profile that does not fails closed, which
+        is correct and untestable. Sibling sets are searched so this follows the
+        pinned corpus rather than hard-coding a set identity."""
+        for sibling in sorted(self.CORPUS.parent.glob("WEXP-CORE-01-VECTORS-*")):
+            try:
+                candidate = load(sibling)
+            except Exception:
+                continue
+            roles = candidate.profile["token_registry"]["roles"]
+            if "profile_mapping_invalid" in roles:
+                return candidate
+        raise unittest.SkipTest(
+            "no pinned vector set declares a profile_mapping_invalid role, so the "
+            "Section 6.2 position-4 rejection cannot be represented here"
+        )
+
+    def _payload(self, mutate):
+        import copy
+        payload = copy.deepcopy(self.base)
+        payload["asserted_claim"] = {"base": "execution", "qualifiers": []}
+        payload["boundary_finding"]["ceiling_base"] = "execution"
+        payload["base_findings"] = [{
+            "base": "execution", "basis_refs": ["execution"], "evaluation_context_ref": "C",
+            "limitations": [], "reasons": [], "semantic_validation": "supported",
+            "target": "T", "target_binding": "supported",
+        }]
+        payload["qualifier_findings"] = []
+        mutate(payload)
+        return payload
+
+    def _appraise(self, mutate):
+        """A complete Core appraisal, ingress included."""
+        from wexp_ref.core01.harness.candidate import Vector
+        candidate = self._fatal_candidate()
+        vector = Vector(vector_id="scope", path=Path("scope"), sha256="",
+                        payload={"input": self._payload(mutate)})
+        results = {n: load_engine(n).evaluate(vector, candidate) for n in ("independent", "reference")}
+        self.assertEqual(json.dumps(results["independent"], sort_keys=True),
+                         json.dumps(results["reference"], sort_keys=True), "the two engines disagree")
+        return results["reference"]
+
+    def _supported_with_ingress_bypassed(self, engine_name, mutate):
+        """What Section 8 admits when the ordered checks are switched off.
+
+        A complete appraisal can never reach this state, because ingress rejects
+        the input first. The defence still has to hold on its own, so it is
+        exercised by neutralising the scope guard and reading the supported set.
+        This is an internal subprocedure result and is never reported as a Core
+        appraisal.
+        """
+        from unittest import mock
+        from wexp_ref.core01.harness.candidate import Vector
+        candidate = self._fatal_candidate()
+        vector = Vector(vector_id="bypass", path=Path("bypass"), sha256="",
+                        payload={"input": self._payload(mutate)})
+        if engine_name == "reference":
+            from wexp_ref.core01.engines.reference import gate
+            patch = mock.patch.object(gate, "screen", lambda profile, value: None)
+        else:
+            from wexp_ref.core01.engines.independent import ingress
+            kept = tuple(g for g in ingress.GUARDS if g.__name__ != "_g_scope_contract")
+            patch = mock.patch.object(ingress, "GUARDS", kept)
+        with patch:
+            result = load_engine(engine_name).evaluate(vector, candidate)
+        return [c["base"] for c in (result.get("supported_claims") or [])]
+
+    # ---- layer A: the complete appraisal is a fatal reject ----------------
+
+    def test_control_in_scope_input_is_appraised_normally(self) -> None:
+        result = self._appraise(lambda p: None)
+        self.assertEqual(result["fatal_reasons"], [])
+        self.assertTrue(result["asserted_claim_supported"])
+        self.assertEqual(result["verdict"], "accept")
+
+    def test_a_foreign_target_finding_makes_the_input_contract_invalid(self) -> None:
+        result = self._appraise(lambda p: p["base_findings"][0].__setitem__("target", "T-foreign"))
+        self.assertEqual(result["verdict"], "reject")
+        self.assertEqual(result["fatal_reasons"], ["E_PROFILE_MAPPING_INVALID"])
+        self.assertEqual(result["substantive_reasons"], [])
+
+    def test_a_foreign_context_finding_makes_the_input_contract_invalid(self) -> None:
+        result = self._appraise(
+            lambda p: p["base_findings"][0].__setitem__("evaluation_context_ref", "C-foreign"))
+        self.assertEqual(result["verdict"], "reject")
+        self.assertEqual(result["fatal_reasons"], ["E_PROFILE_MAPPING_INVALID"])
+
+    def test_a_foreign_qualifier_is_caught_even_with_an_in_scope_base(self) -> None:
+        def mutate(p):
+            p["asserted_claim"] = {"base": "execution", "qualifiers": ["IV"]}
+            p["qualifier_findings"] = [{
+                "qualifier": "IV", "qualified_base": "execution", "basis_refs": ["iv"],
+                "evaluation_context_ref": "C", "independence_validation": "supported",
+                "limitations": [], "reasons": [], "semantic_validation": "supported",
+                "target": "T-foreign", "target_binding": "supported",
+            }]
+        result = self._appraise(mutate)
+        self.assertEqual(result["fatal_reasons"], ["E_PROFILE_MAPPING_INVALID"])
+
+    def test_a_foreign_scoped_boundary_is_caught(self) -> None:
+        for field, value in (("target", "T-foreign"), ("evaluation_context_ref", "C-foreign")):
+            with self.subTest(field=field):
+                result = self._appraise(lambda p, f=field, v=value: p["boundary_finding"].__setitem__(f, v))
+                self.assertEqual(result["fatal_reasons"], ["E_PROFILE_MAPPING_INVALID"])
+
+    def test_a_foreign_scoped_profile_gap_is_caught(self) -> None:
+        def mutate(p):
+            p["profile_evaluation_gaps"] = [{
+                "token": "E_IV_NOT_EVALUATED", "target": "T-foreign", "evaluation_context_ref": "C",
+                "affected_claims": [{"base": "execution", "qualifiers": []}],
+                "basis_refs": ["pg"], "limitations": [],
+            }]
+        result = self._appraise(mutate)
+        self.assertEqual(result["fatal_reasons"], ["E_PROFILE_MAPPING_INVALID"])
+
+    def test_one_valid_finding_does_not_legalise_the_input(self) -> None:
+        """The contract is a property of the input, not of its best aggregate."""
+        def mutate(p):
+            p["asserted_claim"] = {"base": "invocation", "qualifiers": []}
+            p["base_findings"] = [
+                {"base": "invocation", "basis_refs": ["invocation"], "evaluation_context_ref": "C",
+                 "limitations": [], "reasons": [], "semantic_validation": "supported",
+                 "target": "T", "target_binding": "supported"},
+                {"base": "execution", "basis_refs": ["execution"], "evaluation_context_ref": "C",
+                 "limitations": [], "reasons": [], "semantic_validation": "supported",
+                 "target": "T-foreign", "target_binding": "supported"},
+            ]
+        result = self._appraise(mutate)
+        self.assertEqual(result["verdict"], "reject")
+        self.assertEqual(result["fatal_reasons"], ["E_PROFILE_MAPPING_INVALID"])
+        self.assertEqual(result["supported_claims"], [])
+
+    # ---- layer B: defence in depth, ingress bypassed ----------------------
+
+    def test_defence_in_depth_control_admits_an_in_scope_finding(self) -> None:
+        for engine in ("reference", "independent"):
+            with self.subTest(engine=engine):
+                self.assertEqual(
+                    self._supported_with_ingress_bypassed(engine, lambda p: None), ["execution"])
+
+    def test_defence_in_depth_refuses_a_foreign_target_finding(self) -> None:
+        """Section 8.4's admission predicate opens with f.target == input.target,
+        so the finding is refused here even where ingress never ran."""
+        for engine in ("reference", "independent"):
+            with self.subTest(engine=engine):
+                self.assertEqual(self._supported_with_ingress_bypassed(
+                    engine, lambda p: p["base_findings"][0].__setitem__("target", "T-foreign")), [])
+
+    def test_defence_in_depth_refuses_a_foreign_context_finding(self) -> None:
+        for engine in ("reference", "independent"):
+            with self.subTest(engine=engine):
+                self.assertEqual(self._supported_with_ingress_bypassed(
+                    engine,
+                    lambda p: p["base_findings"][0].__setitem__("evaluation_context_ref", "C-foreign")), [])

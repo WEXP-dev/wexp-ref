@@ -4,7 +4,7 @@
   "repository": "WEXP-dev/wexp-vectors",
   "status": "pinned",
   "package_status": "candidate",
-  "commit": "2da7309d75762e4cf1e83b86bd606f4d473b1638",
+  "commit": "feb7f4c987c68a0054fe531fdd042dcc5ca13e45",
   "manifest_path": "manifests/core-01-vectors.json",
   "manifest_sha256": "c08ff4fd6e4ee7de8c6450bb3e6f72c0ac6f1242c3d7251b81f339826de38ba7",
   "vector_sets": [
@@ -19,6 +19,12 @@
       "manifest_path": "manifests/core-01-vectors-002.json",
       "manifest_sha256": "06fa3306fc11748fc761542a4dff506da6ea57da7bd384b26d34af8827e7b3e2",
       "vector_set_sha256": "8b2dfd5ac6f983201f8869c331b58936e3378f382a3a989b9a63c8d85791facf"
+    },
+    {
+      "candidate_id": "WEXP-CORE-01-VECTORS-003",
+      "manifest_path": "manifests/core-01-vectors-003.json",
+      "manifest_sha256": "54531d8e3a2a69518834700521c219ddff11aeccad0b79987573c04b1280aaf6",
+      "vector_set_sha256": "338b14cffdb846ca2aec4574ad9e52dd3615e15c8de7861d922e4323989440cd"
     }
   ]
 }

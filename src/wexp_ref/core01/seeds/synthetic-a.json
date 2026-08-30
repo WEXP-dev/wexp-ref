@@ -198,9 +198,11 @@
             "basis_refs": [
               "execution"
             ],
+            "evaluation_context_ref": "C",
             "limitations": [],
             "reasons": [],
             "semantic_validation": "supported",
+            "target": "T",
             "target_binding": "supported"
           }
         ],
@@ -314,9 +316,11 @@
             "basis_refs": [
               "execution"
             ],
+            "evaluation_context_ref": "C",
             "limitations": [],
             "reasons": [],
             "semantic_validation": "supported",
+            "target": "T",
             "target_binding": "supported"
           }
         ],
@@ -430,9 +434,11 @@
             "basis_refs": [
               "execution"
             ],
+            "evaluation_context_ref": "C",
             "limitations": [],
             "reasons": [],
             "semantic_validation": "supported",
+            "target": "T",
             "target_binding": "unsupported"
           }
         ],
@@ -578,9 +584,11 @@
             "basis_refs": [
               "observation"
             ],
+            "evaluation_context_ref": "C",
             "limitations": [],
             "reasons": [],
             "semantic_validation": "supported",
+            "target": "T",
             "target_binding": "supported"
           }
         ],
@@ -752,9 +760,11 @@
             "basis_refs": [
               "execution"
             ],
+            "evaluation_context_ref": "C",
             "limitations": [],
             "reasons": [],
             "semantic_validation": "supported",
+            "target": "T",
             "target_binding": "supported"
           }
         ],
@@ -802,12 +812,14 @@
             "basis_refs": [
               "iv"
             ],
+            "evaluation_context_ref": "C",
             "independence_validation": "supported",
             "limitations": [],
             "qualified_base": "execution",
             "qualifier": "IV",
             "reasons": [],
             "semantic_validation": "supported",
+            "target": "T",
             "target_binding": "supported"
           }
         ],
@@ -926,9 +938,11 @@
             "basis_refs": [
               "execution"
             ],
+            "evaluation_context_ref": "C",
             "limitations": [],
             "reasons": [],
             "semantic_validation": "supported",
+            "target": "T",
             "target_binding": "supported"
           }
         ],
@@ -1032,9 +1046,11 @@
             "basis_refs": [
               "execution"
             ],
+            "evaluation_context_ref": "C",
             "limitations": [],
             "reasons": [],
             "semantic_validation": "supported",
+            "target": "T",
             "target_binding": "supported"
           }
         ],

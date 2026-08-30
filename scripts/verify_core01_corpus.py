@@ -14,7 +14,11 @@ from typing import Sequence
 
 
 REQUIRED_CANDIDATES = frozenset(
-    {"WEXP-CORE-01-VECTORS-001", "WEXP-CORE-01-VECTORS-002"}
+    {
+        "WEXP-CORE-01-VECTORS-001",
+        "WEXP-CORE-01-VECTORS-002",
+        "WEXP-CORE-01-VECTORS-003",
+    }
 )
 REQUIRED_TOP_LEVEL = frozenset(
     {
@@ -77,7 +81,9 @@ def validate_lock(lock: object) -> dict[str, object]:
     if not isinstance(entries, list):
         raise ValueError("Core-01 lock must contain a vector_sets array")
     if len(entries) != len(REQUIRED_CANDIDATES):
-        raise ValueError("Core-01 lock must contain exactly two vector-set entries")
+        raise ValueError(
+            f"Core-01 lock must contain exactly {len(REQUIRED_CANDIDATES)} vector-set entries"
+        )
     for entry in entries:
         if not isinstance(entry, dict):
             raise ValueError("each vector_sets entry must be an object")
