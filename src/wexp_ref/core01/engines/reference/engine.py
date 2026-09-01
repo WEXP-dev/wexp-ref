@@ -97,10 +97,16 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
     profile = candidate.profile
     value = vector.input
     try:
-        screened = gate.screen(profile, value)
+        successor = gate.under_successor_contract(candidate)
+        screened = gate.screen(profile, value, successor=True) if successor else gate.screen(profile, value)
         if screened is not None:
             token, _detail = screened
             return algebra.fixed_rejection(profile, [token])
+        # Successor contracts carry the binding ledger as an audit field outside
+        # the comparison; predecessor contracts keep the predecessor result bytes.
+        audit: dict[str, Any] = (
+            {"diagnostic_token_resolution": gate.binding_ledger(profile, value)[1]} if successor else {}
+        )
 
         fatal = list(value.get("fatal_conditions") or [])
         if fatal:
@@ -387,6 +393,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             "inherited_limitations": algebra.union_in_order(inherited),
             "evaluation_context": copy.deepcopy(value.get("evaluation_context")),
             "evaluation_scope": copy.deepcopy(value.get("evaluation_scope")),
+            **audit,
         }
     except (OutsideSlice, algebra.ClaimRejected, gate.GateRefusal) as exc:
         return {

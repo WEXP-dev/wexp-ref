@@ -50,7 +50,11 @@ def main(argv: list[str] | None = None) -> int:
         observed["reference"], sort_keys=True
     )
     expected = vector.payload["expected"]
-    met = all(json.dumps(o, sort_keys=True) == json.dumps(expected, sort_keys=True) for o in observed.values())
+    # Same projection rule as the comparator: keys prefixed ``diagnostic_`` are
+    # engine audit detail and are not part of the semantic comparison.
+    def _projection(result):
+        return {k: v for k, v in result.items() if not k.startswith("diagnostic_")}
+    met = all(json.dumps(_projection(o), sort_keys=True) == json.dumps(expected, sort_keys=True) for o in observed.values())
 
     if args.json_out:
         print(json.dumps({

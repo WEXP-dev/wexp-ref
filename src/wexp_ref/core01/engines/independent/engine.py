@@ -102,10 +102,23 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
     try:
         # Ordered Core ingress precedes appraisal. Positions 1-4 are decided
         # here; a win at any of them is the only Core result for that input.
-        derived = ingress.evaluate_order(profile, value)
+        successor = ingress.successor_rules_apply(candidate)
+        derived = (
+            ingress.evaluate_order(profile, value, successor=True)
+            if successor
+            else ingress.evaluate_order(profile, value)
+        )
         if derived is not None:
             token, _detail = derived
             return claim_algebra.fixed_rejection(profile, [token])
+        # Under a successor contract the result carries an audit ledger of the
+        # non-Core token resolution (``diagnostic_`` keys are outside the
+        # comparison). Under a predecessor contract the result is byte-identical
+        # to the predecessor engine's.
+        extras: dict[str, Any] = (
+            {"diagnostic_token_resolution": ingress.resolve_non_core_tokens(profile, value)[1]}
+            if successor else {}
+        )
 
         # Position 5: a valid supplied fatal set. Supplied, never derived.
         fatal = list(value.get("fatal_conditions") or [])
@@ -411,6 +424,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             "evaluation_context": copy.deepcopy(value.get("evaluation_context")),
             # Carried, never interpreted.
             "evaluation_scope": copy.deepcopy(value.get("evaluation_scope")),
+            **extras,
         }
     except (_Reject, claim_algebra.ClaimError) as exc:
         return {
