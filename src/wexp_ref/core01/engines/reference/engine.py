@@ -130,6 +130,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
         substantive: list[str] = []
         over_ceiling_ranks: set[int] = set()
         present_bases: set[str] = set()
+        present_base_records: dict[str, dict[str, Any]] = {}
         present_qualifiers: dict[tuple[str, str], dict[str, Any]] = {}
 
         def remember(claim: dict[str, Any], basis: list[str], limits: list[str]) -> None:
@@ -151,6 +152,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             # Presence is not admission: Section 8.6 distinguishes an absent
             # aggregate from a present one whose status did not pass.
             present_bases.add(base)
+            present_base_records[base] = finding
             if not _finding_admitted(profile, finding, value):
                 continue
             if bases.index(base) > ceiling_rank:
@@ -261,7 +263,26 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             ):
                 qualifier_gaps.append((not_evaluated_row, finding))
                 row_fired = True
-        # The ten Section 8.6 rows this profile does not register are a declared
+        # Present-aggregate status rows (Section 8.6), applied in table order over
+        # the asserted aggregates: target_binding unsupported -> evidence-not-bound
+        # row (base or qualifier aggregate); semantic_validation unsupported on the
+        # asserted base -> exact-claim-not-supported row. A row is reachable only
+        # when the profile registers a token for it.
+        roles = profile["token_registry"]["roles"]
+        status_rows: list[tuple[dict[str, Any] | None, str, str, str | None]] = [
+            (present_base_records.get(asserted["base"]), "target_binding", "unsupported", roles.get("evidence_not_bound")),
+            (present_base_records.get(asserted["base"]), "semantic_validation", "unsupported", roles.get("exact_claim_not_supported")),
+        ]
+        for qualifier in asserted["qualifiers"]:
+            status_rows.append((present_qualifiers.get((asserted["base"], qualifier)), "target_binding",
+                                "unsupported", roles.get("evidence_not_bound")))
+        for record, field, status, token in status_rows:
+            if record is None or token is None:
+                continue
+            if record.get(field) == status:
+                substantive.append(token)
+                row_fired = True
+        # The Section 8.6 rows this profile does not register are a declared
         # absence, so a claim unsupported for one of their reasons still collapses
         # onto missing-required-evidence. That collapse is the fallback for rows
         # that cannot be named, not a rule: it applies only where no registered

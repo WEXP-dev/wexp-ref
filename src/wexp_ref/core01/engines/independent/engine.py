@@ -88,6 +88,17 @@ def _qualifier_independence_ok(profile: dict[str, Any], qualifier: str, observed
     return observed == required
 
 
+def _optional_role(profile: dict[str, Any], role: str) -> str | None:
+    """The token a profile registers for a matrix row, or None when it does not.
+
+    A row whose token the profile does not register stays a declared absence
+    (the claim collapses onto missing-required-evidence); it never fails hard,
+    because the row is optional vocabulary, not an ingress position.
+    """
+
+    return profile["token_registry"]["roles"].get(role)
+
+
 def _affects(profile: dict[str, Any], affected: Any, claim_list: list[dict[str, Any]]) -> bool:
     if affected == "all-admissible-claims":
         return True
@@ -146,6 +157,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
         # Whether an aggregate was supplied at all, which Section 8.6 treats as a
         # different question from whether its assessments passed.
         supplied_bases: set[str] = set()
+        supplied_base_findings: dict[str, dict[str, Any]] = {}
         supplied_qualifiers: dict[tuple[str, str], dict[str, Any]] = {}
 
         for finding in value.get("base_findings") or []:
@@ -156,6 +168,7 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
                 # neither supplied evidence here nor negative evidence here.
                 continue
             supplied_bases.add(base)
+            supplied_base_findings[base] = finding
             if not _passes(profile, finding):
                 continue
             if bases.index(base) > ceiling_rank:
@@ -292,10 +305,32 @@ def evaluate(vector: Vector, candidate: Candidate) -> dict[str, Any]:
             if any(assessment == "not-evaluated" for assessment in assessments):
                 pending_qualifier_gaps.append(finding)
                 named_a_row = True
-        # Ten Section 8.6 rows have no token in this profile. They stay a declared
-        # absence, and a claim unsupported only for one of their reasons still
-        # collapses onto missing-required-evidence -- but that collapse is what
-        # happens when no row could be named, never on top of one that could.
+        # Status rows on a present asserted aggregate (Section 8.6): a present
+        # asserted-base or asserted-qualifier aggregate whose target binding is
+        # unsupported names the E_EVIDENCE_NOT_BOUND row; a present asserted-base
+        # aggregate whose semantic validation is unsupported names the
+        # E_EXACT_CLAIM_NOT_SUPPORTED row. Each row fires only when the profile
+        # registers its token; every applicable distinct token is emitted.
+        not_bound = _optional_role(profile, "evidence_not_bound")
+        not_supported = _optional_role(profile, "exact_claim_not_supported")
+        present_base = supplied_base_findings.get(asserted["base"])
+        if present_base is not None:
+            if not_bound and present_base.get("target_binding") == "unsupported":
+                substantive.append(not_bound)
+                named_a_row = True
+            if not_supported and present_base.get("semantic_validation") == "unsupported":
+                substantive.append(not_supported)
+                named_a_row = True
+        for qualifier in asserted["qualifiers"]:
+            finding = supplied_qualifiers.get((asserted["base"], qualifier))
+            if finding is not None and not_bound and finding.get("target_binding") == "unsupported":
+                substantive.append(not_bound)
+                named_a_row = True
+        # The remaining Section 8.6 rows have no token in this profile. They stay
+        # a declared absence, and a claim unsupported only for one of their
+        # reasons still collapses onto missing-required-evidence -- but that
+        # collapse is what happens when no row could be named, never on top of
+        # one that could.
         if not asserted_supported and not named_a_row:
             substantive.append(absent)
 
