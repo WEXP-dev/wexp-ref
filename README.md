@@ -19,10 +19,9 @@ IETF acceptance, or the validity of an execution claim.
 
 ## Relationship to the specifications
 
-The current WEXP specification is
-[Core `-01`](https://datatracker.ietf.org/doc/draft-sergeev-wexp-core/01/),
-an Internet-Draft posted 2026-08-17; Core `-00` remains available as the previous
-revision. Neither is an Internet Standard. The reference implementation may lag behind the specifications.
+The current Core specification is [Core `-02`](https://datatracker.ietf.org/doc/draft-sergeev-wexp-core/02/).
+[Coverage `-00`](https://datatracker.ietf.org/doc/draft-sergeev-wexp-coverage/00/) is a separate published Internet-Draft. Neither is an Internet Standard.
+This implementation and its pinned vector corpus remain scoped to Core `-01`; no Core-02 or Coverage conformance is established by those results. Core `-01` and `-00` remain available as historical revisions. The reference implementation may lag behind the specifications.
 A missing feature here does not mean that it is absent from a specification.
 This implementation cannot add, replace, or reinterpret specification
 requirements. Pre-publication development is maintained separately.
