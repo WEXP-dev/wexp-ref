@@ -1,0 +1,59 @@
+name: Core-02 bounded qualification
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  core02:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: WEXP-dev/wexp-vectors
+          ref: 2e6b6da1d77b7fa8bb618b9fb8af0817573f70cf
+          path: build/core02-vectors
+          persist-credentials: false
+      - name: Install the package
+        run: python -m pip install --no-deps .
+      - name: Verify pinned corpus before executing expectation code
+        run: |
+          python scripts/verify_core02_corpus.py --repository build/core02-vectors
+          python build/core02-vectors/vectors/WEXP-CORE-02-VECTORS-001/verify.py
+          python build/core02-vectors/vectors/WEXP-CORE-02-VECTORS-001/corpus.py --check --output build/core02-inputs.json
+      - name: Full-result comparison in normal and optimized modes
+        run: |
+          python -m wexp_ref.core02.qualify --corpus build/core02-inputs.json --expected-sha256 d5d2c9d54185f04ac59ac2b5642853a6ebd00c3d28a3239d62682186f5df323f --output build/core02-report.json
+          python -O -m wexp_ref.core02.qualify --corpus build/core02-inputs.json --expected-sha256 d5d2c9d54185f04ac59ac2b5642853a6ebd00c3d28a3239d62682186f5df323f --output build/core02-optimized-report.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          a = json.loads(Path('build/core02-report.json').read_text())
+          b = json.loads(Path('build/core02-optimized-report.json').read_text())
+          if a['results'] != b['results']:
+              raise SystemExit('Normal/optimized results differ')
+          for report in (a, b):
+              if report['status'] != 'PASS_BOUNDED' or report['passed'] != 89 or report['comparator_negative_controls_passed'] != 42:
+                  raise SystemExit('Incomplete bounded qualification')
+          PY
+      - name: Ingress, comparator and CLI regressions
+        run: |
+          python -m unittest discover -s tests -p 'test_core02_*.py' -v
+          python -O -m unittest discover -s tests -p 'test_core02_*.py' -v
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: core02-reports-${{ matrix.python }}
+          path: build/core02-*report.json
+          if-no-files-found: warn
+          retention-days: 90
