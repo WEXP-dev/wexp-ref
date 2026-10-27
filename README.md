@@ -28,8 +28,10 @@ requirements. Pre-publication development is maintained separately.
 
 ## WEXP repositories
 
-- [Specifications — `wexp-spec`](https://github.com/WEXP-dev/wexp-spec) —
-  published WEXP specifications and their provenance. **Authoritative.**
+- [Appraisal Core — `wexp-appraisal-core-spec`](https://github.com/WEXP-dev/wexp-appraisal-core-spec) —
+  published WEXP Core revisions and their provenance. **Core specification authority.**
+- [Coverage — `wexp-coverage-spec`](https://github.com/WEXP-dev/wexp-coverage-spec) —
+  the separate Coverage specification; not implemented by this Core-01 tooling.
 - [Test vectors — `wexp-vectors`](https://github.com/WEXP-dev/wexp-vectors) —
   vectors derived from those specifications, with their schemas and validators.
 - [Reference implementation — `wexp-ref`](https://github.com/WEXP-dev/wexp-ref) —
