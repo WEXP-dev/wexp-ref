@@ -64,6 +64,13 @@ wexp-ref validate-xml path/to/document.xml
 wexp-ref core00-run-vectors path/to/exact/wexp-vectors --output build/core00-results.json
 ```
 
+For the Core-01 `new_candidate` tool, `--output` names the **parent** directory.
+It creates `<output>/<candidate_id>`, and the resulting candidate directory basename must
+equal the descriptor's `candidate_id`. For example, a seed with ID `MY-CANDIDATE`
+and `--output build/candidates` produces `build/candidates/MY-CANDIDATE`.
+This is an enforced harness-layout invariant, not a new Core semantic rule.
+See [the full Core-01 recipe](CORE01-GUIDE.md#evaluating-your-own-example).
+
 The Core-01 engines, fixed dependency locks, historical test expectations and
 qualification records were not rewritten by the Core-02 addition. Structural
 separation of same-project engines is not external independent validation.
