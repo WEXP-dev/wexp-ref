@@ -280,7 +280,7 @@ absolute paths internally, validates the file and index before writing, and
 prints success only after it verifies the written byte.
 
 ```powershell
-$Set001 = Join-Path -Path $RepoRoot -ChildPath "vectors\WEXP-CORE-01-VECTORS-001"
+$Set001 = Join-Path -Path $VectorsPath -ChildPath "vectors\WEXP-CORE-01-VECTORS-001"
 $TamperParent = Join-Path -Path $RepoRoot -ChildPath (
     "build\tamper-" + [System.Guid]::NewGuid().ToString("N")
 )
