@@ -3,6 +3,7 @@ import argparse
 from copy import deepcopy
 import hashlib
 import json
+import math
 from pathlib import Path
 import platform
 from .appraiser import appraise
@@ -45,9 +46,16 @@ def strict_pairs(items):
 def forbidden_constant(value):
     raise ValueError('Non-finite JSON constant: ' + value)
 
+def finite_float(text):
+    """Reject exponent overflow as a harness decoding failure, never Core evidence."""
+    value = float(text)
+    if not math.isfinite(value):
+        raise ValueError('JSON number is outside the finite local representation')
+    return value
+
 def read_json(raw):
     return json.loads(raw, object_pairs_hook=strict_pairs,
-                      parse_constant=forbidden_constant)
+                      parse_constant=forbidden_constant, parse_float=finite_float)
 
 def qualify(corpus_path, expected_sha256):
     raw = Path(corpus_path).read_bytes()

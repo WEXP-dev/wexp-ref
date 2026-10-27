@@ -29,8 +29,9 @@ controls. Qualification compares all twenty result components and verifies that
 inputs and the profile catalog were not changed. Forty-two negative comparator
 controls include omitted/changed components and Boolean-to-number substitutions.
 
-The dedicated CI installs this package and checks the frozen public corpus on
-Python 3.12 and 3.13 in normal and optimized modes. Only an actually successful
+The dedicated CI installs this package, reads the exact corpus commit from the
+lock and checks the frozen public `corpus.json` on Python 3.12 and 3.13 in
+normal and optimized modes, without executing the corpus's expectation code. Only an actually successful
 run at an identified commit is evidence of those checks. A workflow definition
 alone is not a test result. Run reports contain exact source/corpus digests and
 all observed appraisals; review the run and its jobs, not just a badge.
@@ -48,8 +49,9 @@ composition-profile execution, arbitrary profile-defined atom normalization,
 application reliance decision, Coverage evaluator, PostgreSQL profile validation,
 or AAC/WIMSE interoperability is established by this module or corpus.
 
-The local CLI rejects malformed JSON, duplicate object keys and local size-limit
-violations before Core invocation. Those failures produce no Core appraisal.
+The local CLI rejects malformed JSON, duplicate object keys, non-finite numbers
+(including exponent overflow such as `1e9999`) and local size-limit violations
+before Core invocation. Those failures produce no Core appraisal.
 A decoded logical input may produce a complete Core rejection; that is a separate
 outcome. Resource and Python object limits are not new normative Core semantics.
 The public specification remains authoritative if the implementation is wrong.
