@@ -1,10 +1,10 @@
 {
   "schema": "wexp-core02-corpus-lock/1",
   "repository": "WEXP-dev/wexp-vectors",
-  "commit": "2e6b6da1d77b7fa8bb618b9fb8af0817573f70cf",
+  "commit": "d6827a5e08fdf0aabecee5c025c369273c438db5",
   "corpus_id": "WEXP-CORE-02-VECTORS-001",
   "corpus_path": "vectors/WEXP-CORE-02-VECTORS-001",
-  "manifest_sha256": "21904e5f6fdc02304a7206adcd8e5eb1fad9997493a0e8441ec931efb6f0c0ec",
+  "manifest_sha256": "b802781f9c551988c452556ab975df6e17a98b9791f378c76b04056042eec4ae",
   "expanded_corpus_sha256": "d5d2c9d54185f04ac59ac2b5642853a6ebd00c3d28a3239d62682186f5df323f",
   "specification": "draft-sergeev-wexp-core-02",
   "semantics_version": "wexp-core-2",
