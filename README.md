@@ -15,7 +15,7 @@ repository name, or successful CI job does not upgrade a historical result.
 |---|---|---|
 | `wexp_ref.core02` | Posted Core-02, `wexp-core-2` | [Run and reproduce](docs/core02.md); [bounded surface declaration](CORE02-CONFORMANCE.md). Complete-result comparison against a separately pinned 89-case corpus; not a full-conformance claim. |
 | `wexp_ref.core01` | Core-01 | [Detailed historical guide](CORE01-GUIDE.md#core-01-qualification); [PARTIAL conformance declaration](CONFORMANCE.md). Existing engines and corpus locks are retained. |
-| `wexp_ref.core00` | Core-00 | [First-slice guide](CORE01-GUIDE.md#core-00-vector-slice). Revision-scoped abstract harness, not a wire-format verifier. |
+| `wexp_ref.core00` | Core-00 | [First-slice guide](CORE01-GUIDE.md#core--00-vector-slice). Revision-scoped abstract harness, not a wire-format verifier. |
 | Generic runner | Local runner contract | [Usage and security limits](CORE01-GUIDE.md#generic-runner). Records observations; it is not a sandbox. |
 | WEXP Coverage | Separate Coverage-00 contract | Not implemented or qualified by these Core modules. No `pg-ledger/0.2.0` runtime result is established here. |
 
@@ -54,6 +54,11 @@ The previous README is preserved byte-for-byte as
 [`CORE01-GUIDE.md`](CORE01-GUIDE.md), with all original commands, Windows guidance,
 qualification distinctions, limitations and dependency identities. Its Core-01
 statements describe that historical surface, not the added Core-02 module.
+Where the guide calls the two Core-01 engines "independent", including "two
+independent implementations", read that as two structurally separate engines
+written together in this project from one reading of the specification, as
+[`CONFORMANCE.md`](CONFORMANCE.md#what-engine-agreement-does-and-does-not-establish)
+records. It is not a claim of independent implementation.
 
 The existing `wexp-ref` CLI remains revision-scoped:
 
@@ -98,6 +103,7 @@ published specifications -> reviewed requirements -> frozen expectations -> impl
 - [Coverage specification](https://github.com/WEXP-dev/wexp-coverage-spec): separate population and correspondence claims.
 - [Test vectors](https://github.com/WEXP-dev/wexp-vectors): independently consumable, specification-derived expectations; no dependency on this implementation.
 - [Interop records](https://github.com/WEXP-dev/wexp-interop): exact historical experiment packages and their limits. Core-01 experiments are not reclassified as Core-02 results.
+- [Second Core-02 appraiser](https://github.com/WEXP-dev/wexp-check): written in a separate AI-assisted session operated by the same person as this repository; not an independent implementation. That the session did not consult wexp-ref or any WEXP corpus expectations is an operator declaration and has not been independently verified; this repository's Core-02 module was public before wexp-check started. Its initial version was frozen before the first recorded corpus comparison; later changes are documented there. Its comparison with this module covers Core-02 vector sets 001 (89 cases) and 002 (35 cases); set 002 is not pinned by this repository's own lock.
 
 The new Core-02 module and corpus do not establish an AAC mapping, a new WIMSE
 experiment, cross-carrier equivalence, or Coverage deployment conformance.
