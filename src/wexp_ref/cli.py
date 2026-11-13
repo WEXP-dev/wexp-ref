@@ -12,6 +12,7 @@ from typing import Any
 
 from wexp_ref import __version__
 from wexp_ref.core00 import PackageError, run_package
+from wexp_ref.interop_cli import add_interop_parser
 from wexp_ref.locks import validate_vectors_lock
 from wexp_ref.runner import PlanError, run_plan
 
@@ -141,6 +142,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     core00_package.add_argument("--output", "-o", type=Path)
     core00_package.set_defaults(handler=_core00_run_vectors)
+
+    add_interop_parser(commands)
     return parser
 
 
