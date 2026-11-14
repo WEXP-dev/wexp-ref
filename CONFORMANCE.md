@@ -75,10 +75,13 @@ claim without implementing them would make the claim untrue.
 
 ## Corrected verdict-level deviations
 
-An independent clean-room implementation, written from the published
-specification without reading either engine, surfaced three deviations that did
-change verdicts. All three are corrected, and each has a regression test derived
-from the specification text rather than from either implementation:
+A further implementation, written from the published specification in a
+separate AI-assisted session operated by the same person as this repository,
+surfaced three deviations that did change verdicts. That the session did not read
+either engine is an operator declaration and has not been independently verified;
+it is not an external independent implementation. All three are corrected, and
+each has a regression test derived from the specification text rather than from
+either implementation:
 
 | Deviation | Published rule | Was | Now |
 |---|---|---|---|
@@ -129,7 +132,7 @@ relied on. The three reachable corners of the verdict rule are tested directly.
 ## Corrected scope-contract deviation
 
 A fifth deviation was found after the first four, and unlike them it was not found
-by an independent implementation or by comparing the two engines. It was found by
+by that further implementation or by comparing the two engines. It was found by
 reading §8.1 and §8.4 against a corpus that could not exercise them.
 
 | Deviation | Published rule | Was | Now |
